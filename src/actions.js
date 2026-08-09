@@ -137,6 +137,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'collect_block': {
       const name = String(a.name || '')
       if (!name) throw new Error('collect_block richiede il nome del blocco')
+      const explicitDestroy = /distrugg|romp|demol|rimuov|break|destroy/i.test(`${decision.goal || ''} ${a.reason || ''}`)
+      if (/^(crafting_table|furnace|chest|barrel|anvil|smithing_table|enchanting_table)$/.test(name) && !explicitDestroy) throw new Error(`${name} è una postazione protetta: serve un comando esplicito per distruggerla`)
       const count=Math.max(1,Math.min(Number(a.count)||1,16)),distance=Math.min(Number(a.maxDistance)||48,64),before=inventoryTotal(bot);let broken=0
       for(let i=0;i<count;i++){const block=bot.findBlock({matching:b=>b?.name===name,maxDistance:distance});if(!block)break;await bot.collectBlock.collect(block);broken++;await collectNearbyDrops(bot,16)}
       const gained=inventoryTotal(bot)-before;if(!broken)throw new Error(`nessun blocco ${name} visibile e raggiungibile`);if(bot.inventory?.items&&gained<=0)throw new Error(`${broken} blocchi ${name} rotti, ma nessun materiale è entrato nell’inventario`)

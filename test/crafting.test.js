@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { basicProgressionDecision, craftItem, normalizeDecision, resolveCraftName } from '../src/actions.js'
+import { basicProgressionDecision, craftItem, execute, normalizeDecision, resolveCraftName } from '../src/actions.js'
 import { Vec3 } from 'vec3'
 
 test('crafting table automatically converts a log into planks first', async () => {
@@ -24,3 +24,4 @@ test('human aliases craft and place a workbench before making an axe',async()=>{
 test('crafting aliases select materials already in inventory',()=>{const bot={inventory:{items:()=>[{name:'birch_log',count:2},{name:'red_wool',count:3},{name:'iron_ingot',count:8}]}};assert.equal(resolveCraftName(bot,'plank'),'birch_planks');assert.equal(resolveCraftName(bot,'workbench'),'crafting_table');assert.equal(resolveCraftName(bot,'contenitore'),'chest');assert.equal(resolveCraftName(bot,'letto'),'red_bed');assert.equal(resolveCraftName(bot,'piccone'),'iron_pickaxe');assert.equal(resolveCraftName(bot,'porta'),'birch_door');assert.equal(resolveCraftName(bot,'scudo'),'shield')})
 test('model argument aliases are normalized for collection and crafting',()=>{const collect=normalizeDecision({}, {goal:'collect coal',action:'collect_block',args:{blockType:'coal_ore',quantity:3}});assert.equal(collect.args.name,'coal_ore');assert.equal(collect.args.count,3);const craft=normalizeDecision({}, {goal:'build wooden chest',action:'craft',args:{recipe:'wooden_planks',quantity:6}});assert.equal(craft.args.name,'chest');assert.equal(craft.args.count,6)})
 test('basic progression overrides wandering with a real workbench action',()=>{const bot={inventory:{items:()=>[{name:'oak_log',count:2}]},registry:{blocksByName:{crafting_table:{id:1}}},findBlock:()=>null},decision=basicProgressionDecision(bot,'crea un banco di lavoro');assert.equal(decision.action,'craft');assert.equal(decision.args.name,'crafting_table')})
+test('collecting a block protects functional workstations unless destruction is explicit',async()=>{let collected=false;const bot={inventory:{items:()=>[]},findBlock:()=>({name:'crafting_table'}),collectBlock:{collect:async()=>{collected=true}}};await assert.rejects(()=>execute(bot,{action:'collect_block',goal:'raccogli materiali',args:{name:'crafting_table'}}),/postazione protetta/);assert.equal(collected,false)})
