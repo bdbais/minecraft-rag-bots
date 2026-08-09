@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -160,6 +160,20 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const food = bot.inventory.items().find(i => i.name === a.name) || bot.inventory.items().find(i => /bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon/.test(i.name))
       if (!food) throw new Error('no recognized food')
       await bot.equip(food, 'hand'); await bot.consume(); return `ate ${food.name}`
+    }
+    case 'build_shelter': {
+      const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
+      if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
+      const material = blocks.sort((a, b) => b.count - a.count)[0]; await bot.equip(material, 'hand')
+      const p = bot.entity.position.floored ? bot.entity.position.floored() : bot.entity.position; let placed = 0
+      for (const [dx, dy, dz] of [[-1,0,-1],[0,0,-1],[1,0,-1],[-1,0,0],[1,0,0],[-1,0,1],[0,0,1],[1,0,1],[-1,1,-1],[1,1,-1],[-1,1,1],[1,1,1],[0,2,0]]) {
+        if (material.count <= 0) break
+        const target = bot.blockAt(new Vec3(p.x + dx, p.y + dy, p.z + dz)), below = bot.blockAt(new Vec3(p.x + dx, p.y + dy - 1, p.z + dz))
+        if (!target || !below || below.boundingBox !== 'block' || !/^(air|cave_air|void_air)$/.test(target.name)) continue
+        try { await bot.placeBlock(below, new Vec3(0, 1, 0)); placed++; material.count-- } catch {}
+      }
+      if (!placed) throw new Error('nessun blocco posizionato: spazio non valido o blocchi non raggiungibili')
+      return `riparo costruito: ${placed} blocchi posizionati`
     }
     case 'attack_nearest': {
       const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < 16 && (e.type === 'mob' || (allowPvp && e.type === 'player' && e.username !== bot.username)))

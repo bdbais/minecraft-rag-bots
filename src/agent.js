@@ -8,12 +8,12 @@ Identity gender: ${config.gender || 'neutral'}. Use identity-consistent language
 Personality and role: ${personalityPrompt(config.personality)}
 ${psychProfile(config).prompt}
 Choose only one provided action. Args by action:
-wait {ms}; chat {message}; unstuck {}; move_to {x,y,z,range}; explore {radius}; follow_player {username,range}; give_item {username,name,count}; share_checkpoint {type,label,x?,y?,z?,note}; collect_wood {count}; collect_block {name,count,maxDistance}; collect_drops {maxDistance}; inspect_storage {}; craft {name,count}; equip {name,destination}; eat {name?}; attack_nearest {}; stop {}.
+wait {ms}; chat {message}; unstuck {}; move_to {x,y,z,range}; explore {radius}; follow_player {username,range}; give_item {username,name,count}; share_checkpoint {type,label,x?,y?,z?,note}; collect_wood {count}; collect_block {name,count,maxDistance}; collect_drops {maxDistance}; inspect_storage {}; craft {name,count}; equip {name,destination}; eat {name?}; build_shelter {}; attack_nearest {}; stop {}.
 Use collect_wood instead of guessing a tree species: it searches oak, birch, spruce, jungle, acacia, dark oak, mangrove, cherry, stems and hyphae. If none is loaded, explore and try again. The craft action automatically crafts available intermediate ingredients (for example logs into planks), so use it when raw materials are in inventory. inspect_storage reads a discovered chest or barrel. TEAMMATES provide facts shared directly by nearby bots. TEAM CHECKPOINTS are persistent server-wide coordinates; use move_to to reach useful ones and share_checkpoint when you discover a chest, mine, dungeon, special monster, resource, danger, portal or base. Keep pursuing the human instruction across its necessary intermediate steps. Never claim an action happened before its result. Be cautious below 10 health or 8 food. Do not attack players.
 Crafting names: use crafting_table (not workbench), oak_planks/birch_planks/etc. (not plank), wooden_axe/stone_axe, color_bed such as white_bed, and chest. Generic plank/planks, workbench, axe, bed and container aliases are accepted and resolved from inventory. The craft action creates intermediate ingredients and, when required, creates, places and uses a crafting table automatically. Return schema-compliant JSON only.`
 
 export class Agent {
-  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={} }
+  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='' }
   instruct(text) { if (String(text).trim()) { this.instructions.push(String(text).trim()); this.interrupt('Nuova istruzione manuale') } }
   emit(type, payload = {}) { this.events[type]?.(payload) }
   async cancelAction() {
@@ -63,6 +63,14 @@ export class Agent {
     catch (error) { if (generation !== this.generation || this.planningController.signal.aborted) throw new Error('INTERRUPTED'); throw error }
     finally { this.planningController = null }
     decision=basicProgressionDecision(this.bot,manual)||normalizeDecision(this.bot,decision)
+    const currentSignature=this.progressSignature()
+    if(!manual && currentSignature===this.lastProgressSignature) this.noProgressSteps++; else this.noProgressSteps=0
+    this.lastProgressSignature=currentSignature
+    if(!manual && this.noProgressSteps>=3){
+      const items=this.bot.inventory?.items?.()||[], wood=items.filter(x=>/(_log|_wood|_stem|_hyphae)$/.test(x.name)).reduce((n,x)=>n+x.count,0), building=items.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name))
+      decision=wood<2?{thought:'Ciclo improduttivo: raccolta deterministica del legno.',goal:'raccogliere materiali base',action:'collect_wood',args:{count:4},expected:'legno nell inventario'}:building?{thought:'Ciclo improduttivo: costruzione di un riparo.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'blocchi posizionati'}:{thought:'Ciclo improduttivo: esplorazione per trovare risorse.',goal:'esplorare e trovare risorse',action:'explore',args:{radius:24},expected:'nuova area esplorata'}
+      this.noProgressSteps=0;this.emit('log',{level:'info',message:`Watchdog: nessun progresso da 3 cicli, avvio recupero ${decision.action}`})
+    }
     if (generation !== this.generation) throw new Error('INTERRUPTED')
     if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop'].includes(decision.action)){const blocked=decision.action;decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}
     this.steps++; this.emit('decision', { decision, state, manual })
