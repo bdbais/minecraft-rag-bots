@@ -103,6 +103,10 @@ export class BotManager extends EventEmitter {
       if (!text || text.startsWith('!status')) return
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
+      if (/^(ciao|salve|buongiorno|buonasera|hello|hi|hey)\b/i.test(text) && !teammate) {
+        bot.chat(`Ciao ${username}! Sono ${config.name}. Sono pronto a collaborare.`)
+        this.log(id, 'info', `Saluto inviato a ${username}`)
+      }
       entry.biography?.add('chat', 'Voci dal mondo', `${config.name} ha letto un messaggio di ${username}: “${text}”.`, { username, addressed }).catch(()=>{})
       if (!teammate || addressed) {
         const instruction = `Messaggio Minecraft di ${username}: ${text}`
