@@ -10,7 +10,7 @@ import { BotManager } from '../src/bot-manager.js'
 import { checkForUpdates } from '../src/update-checker.js'
 import { createExportPackage } from '../src/export-package.js'
 import { queryOllama } from '../src/ollama-setup.js'
-import { recommendLocalModel } from '../src/model-recommendation.js'
+import { recommendLocalModel, hardwareDna } from '../src/model-recommendation.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -31,7 +31,7 @@ async function findOllamaCli() {
   for(const candidate of candidates){try{await execFileAsync(candidate,['--version'],{windowsHide:true,timeout:5000});return candidate}catch{}}
   return null
 }
-async function modelRecommendation(){let gpu={};try{gpu=await app.getGPUInfo('basic')}catch{}return recommendLocalModel({ramBytes:os.totalmem(),cpuModel:os.cpus()[0]?.model||'',gpus:gpu.gpuDevice||[]})}
+async function modelRecommendation(){let gpu={};try{gpu=await app.getGPUInfo('basic')}catch{}const hardware={ramBytes:os.totalmem(),cpuModel:os.cpus()[0]?.model||'',logicalCpuCount:os.cpus().length,gpus:gpu.gpuDevice||[]};return {...recommendLocalModel(hardware),hardwareDna:hardwareDna(hardware)}}
 async function ollamaStatus(){const status=await queryOllama();let installedDefinition='',selection=null;try{installedDefinition=(await fs.readFile(ollamaModelVersionFile(),'utf8')).trim()}catch{}try{selection=JSON.parse(await fs.readFile(ollamaSelectionFile(),'utf8'))}catch{}const baseModelCurrent=installedDefinition===app.getVersion(),recommendation=await modelRecommendation();return{...status,ready:status.ready&&baseModelCurrent,baseModelCurrent,recommendation,selection,installed:!!(await findOllamaCli()),platform:process.platform}}
 async function startOllama(){const cli=await findOllamaCli();if(!cli)throw new Error('Ollama non è installato');if(process.platform==='darwin'&&cli.includes('.app'))spawn('open',['-a','Ollama'],{detached:true,stdio:'ignore'}).unref();else spawn(cli,['serve'],{detached:true,stdio:'ignore',windowsHide:true}).unref();for(let i=0;i<15;i++){await new Promise(r=>setTimeout(r,1000));const status=await queryOllama();if(status.running)return status}throw new Error('Ollama è installato ma il servizio non risponde. Avvialo manualmente e riprova.')}
 async function installOllama(){if(process.platform!=='win32'){await shell.openExternal('https://ollama.com/download');return{external:true}}send('ollama:progress',{message:'Installazione di Ollama tramite Windows…',percent:5});try{await execFileAsync('winget.exe',['install','--id','Ollama.Ollama','--exact','--accept-package-agreements','--accept-source-agreements'],{windowsHide:true,timeout:15*60*1000,maxBuffer:10*1024*1024});return{installed:true}}catch(error){await shell.openExternal('https://ollama.com/download/windows');throw new Error(`Installazione automatica non completata. Ho aperto il download ufficiale. ${error.message}`)}}
