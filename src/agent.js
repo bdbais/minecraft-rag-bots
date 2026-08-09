@@ -2,6 +2,7 @@ import { basicProgressionDecision, craftableBasicRecipes, decisionSchema, execut
 import { observe } from './observe.js'
 import { personalityPrompt } from './personalities.js'
 import { psychProfile } from './traits.js'
+import { campaignState } from './campaign.js'
 
 const baseSystem = config => `You control a Minecraft survival bot. Work incrementally toward defeating the Ender Dragon.
 Identity gender: ${config.gender || 'neutral'}. Use identity-consistent language when referring to yourself, without stereotypes.
@@ -56,11 +57,12 @@ export class Agent {
     if (!nextInstruction && this.activeInstructionSteps > 0) this.activeInstructionSteps--
     const team = typeof this.config.teamContext === 'function' ? this.config.teamContext() : []
     const checkpoints = typeof this.config.teamCheckpoints === 'function' ? this.config.teamCheckpoints() : []
+    const campaign = campaignState(state, checkpoints)
     const prompt = `CURRENT OBSERVATION (visible now; absence does not erase memory):\n${JSON.stringify(state, null, 2)}\n\nWORLD KNOWLEDGE (persistent discoveries; use coordinates to revisit known resources and places):\n${JSON.stringify(worldKnowledge,null,2)}\n\nTEAMMATES (coordinate, do not duplicate work):\n${JSON.stringify(team, null, 2)}\n\nTEAM CHECKPOINTS (persistent shared coordinates):\n${JSON.stringify(checkpoints, null, 2)}\n\nRETRIEVED KNOWLEDGE AND EXPERIENCE:\n${memories.map((m, i) => `${i + 1}. ${m.text}`).join('\n') || 'none'}\n\n${manual ? `HUMAN INSTRUCTION (highest priority if safe and possible): ${manual}\n\n` : ''}Select the next small action.`
     this.phase = 'planning'; this.emit('status', { running: true })
     this.planningController = new AbortController()
     let decision=basicProgressionDecision(this.bot,manual)
-    if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), prompt, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
+    if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), `CAMPAIGN STATE (verified): ${JSON.stringify(campaign)}\n\n${prompt}`, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
     catch (error) { if (generation !== this.generation || this.planningController.signal.aborted) throw new Error('INTERRUPTED'); throw error }
     finally { this.planningController = null }
     decision=basicProgressionDecision(this.bot,manual)||normalizeDecision(this.bot,decision)
