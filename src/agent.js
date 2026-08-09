@@ -1,4 +1,4 @@
-import { basicProgressionDecision, craftableBasicRecipes, decisionSchema, execute, normalizeDecision } from './actions.js'
+import { autonomousProgressionDecision, basicProgressionDecision, craftableBasicRecipes, decisionSchema, execute, normalizeDecision } from './actions.js'
 import { observe } from './observe.js'
 import { personalityPrompt } from './personalities.js'
 import { psychProfile } from './traits.js'
@@ -62,10 +62,11 @@ export class Agent {
     this.phase = 'planning'; this.emit('status', { running: true })
     this.planningController = new AbortController()
     let decision=basicProgressionDecision(this.bot,manual)
+    if(!decision&&!manual) decision=autonomousProgressionDecision(this.bot,state,checkpoints)
     if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), `CAMPAIGN STATE (verified): ${JSON.stringify(campaign)}\n\n${prompt}`, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
     catch (error) { if (generation !== this.generation || this.planningController.signal.aborted) throw new Error('INTERRUPTED'); throw error }
     finally { this.planningController = null }
-    decision=basicProgressionDecision(this.bot,manual)||normalizeDecision(this.bot,decision)
+    decision=basicProgressionDecision(this.bot,manual)||decision||normalizeDecision(this.bot,decision)
     const currentSignature=this.progressSignature()
     if(!manual && currentSignature===this.lastProgressSignature) this.noProgressSteps++; else this.noProgressSteps=0
     this.lastProgressSignature=currentSignature
