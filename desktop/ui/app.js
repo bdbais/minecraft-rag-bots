@@ -172,4 +172,21 @@ api.onUpdate(s => { snapshots.set(s.id,s); render() }); api.onRemoved(id => { sn
 setInterval(()=>{const s=snapshots.get(selected),el=$('#playTime'),total=$('#totalPlayTime'),startupEl=$('#startupAverage');if(el&&!$('#dashboard').classList.contains('hidden')){el.textContent=formatPlayTime(s?.onlineSince);if(total)total.textContent=formatDuration(s?.lifetime?.totalPlaySeconds||configs.find(x=>x.id===selected)?.lifetime?.totalPlaySeconds||0);const startup=s?.startup;if(startupEl&&startup?.currentWaitMs!=null)startupEl.textContent=`${((startup.currentWaitMs+Date.now()-(startup.measuredAt||Date.now()))/1000).toFixed(1)}s…`}},1000)
 setInterval(()=>{if($('#worldMapDialog').open&&selected)api.getMap(selected).then(data=>{mapData=data;if(mapFollow&&data.position)mapCenter={x:data.position.x,z:data.position.z};drawWorldMap()}).catch(()=>{})},5000)
 applyHelpTips()
+// Pannelli personalizzabili: ogni sezione può essere richiusa e i pannelli principali
+// possono essere riordinati trascinandoli. L'ordine resta locale alla dashboard.
+function initDashboardPanels(){
+  document.querySelectorAll('.sectionToggle').forEach(button=>button.addEventListener('click',()=>{
+    const section=button.closest('.uiSection'); section.classList.toggle('collapsed'); button.textContent=section.classList.contains('collapsed')?'+':'−'
+  }))
+  const grid=document.querySelector('.grid'); if(!grid)return
+  const saved=JSON.parse(localStorage.getItem('dashboard-panel-order')||'[]'), panels=[...grid.querySelectorAll(':scope > .panel')]
+  panels.forEach((panel,index)=>{panel.dataset.panelId=panel.dataset.panelId||panel.querySelector('h3')?.textContent?.trim()||`panel-${index}`})
+  for(const id of saved){const panel=panels.find(x=>x.dataset.panelId===id);if(panel)grid.append(panel)}
+  panels.forEach((panel,index)=>{
+    panel.addEventListener('dragstart',e=>{if(e.target.closest('button,textarea,input,select')){e.preventDefault();return}panel.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',panel.dataset.panelId)})
+    panel.addEventListener('dragend',()=>{panel.classList.remove('dragging');localStorage.setItem('dashboard-panel-order',JSON.stringify([...grid.querySelectorAll(':scope > .panel')].map(x=>x.dataset.panelId)))})
+    panel.addEventListener('dragover',e=>{e.preventDefault();const dragging=grid.querySelector('.dragging');if(dragging&&dragging!==panel){const box=panel.getBoundingClientRect();grid.insertBefore(dragging,e.clientY<box.top+box.height/2?panel:panel.nextSibling)}})
+  })
+}
+initDashboardPanels()
 ;(async () => { configs = await api.listConfigs(); (await api.listBots()).forEach(s => snapshots.set(s.id,s)); selected = configs[0]?.id || null; render(); if(!localStorage.getItem('ollamaSetupDismissed')){const status=await api.ollamaStatus();if(!status.ready)await refreshOllamaSetup(true)} })()
