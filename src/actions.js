@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -88,6 +88,18 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const yaw=(bot.entity.yaw||0)+(Math.random()>.5?1:-1)*(Math.PI/2+Math.random())
       await bot.look?.(yaw,0,true);bot.setControlState?.('jump',true);bot.setControlState?.('forward',true);if(Math.random()>.5)bot.setControlState?.('sprint',true)
       await sleep(1800);bot.clearControlStates?.();return 'manovra di sblocco completata'
+    }
+    case 'escape_hazard': {
+      bot.pathfinder?.setGoal(null); bot.clearControlStates?.()
+      const p=bot.entity.position.floored ? bot.entity.position.floored() : bot.entity.position
+      const candidates=[]
+      for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]){
+        const floor=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)), feet=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)), head=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz))
+        if(floor?.boundingBox==='block'&&feet&&head&&/^(air|cave_air|void_air)$/.test(feet.name)&&/^(air|cave_air|void_air)$/.test(head.name)&&!/(lava|water)/.test(floor.name))candidates.push({x:p.x+dx,y:p.y,z:p.z+dz,d:Math.abs(dx)+Math.abs(dz)})
+      }
+      candidates.sort((a,b)=>b.d-a.d)
+      if(!candidates.length)throw new Error('nessuna casella sicura trovata vicino al pericolo')
+      await bot.pathfinder.goto(new goals.GoalNear(candidates[0].x,candidates[0].y,candidates[0].z,1)); return `pericolo evitato verso ${candidates[0].x},${candidates[0].y},${candidates[0].z}`
     }
     case 'move_to': {
       const x = Number(a.x), y = Number(a.y), z = Number(a.z)
