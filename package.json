@@ -1,0 +1,81 @@
+{
+  "name": "ollama-minecraft-rag-agent",
+  "version": "0.19.3",
+  "description": "Desktop dashboard for multiple Ollama-powered Minecraft RAG bots",
+  "author": "bd_ba",
+  "main": "desktop/main.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "start:cli": "node src/index.js",
+    "dev": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "seed": "node src/seed.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:win:portable": "electron-builder --win portable -c.win.artifactName=Minecraft-RAG-Bots-${version}-Windows-Portable-${arch}.${ext}",
+    "dist:linux": "electron-builder --linux AppImage deb",
+    "dist:mac": "electron-builder --mac dmg zip"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "minecraft-assets": "^1.17.0",
+    "mineflayer": "^4.26.0",
+    "mineflayer-collectblock": "^1.5.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "vec3": "^0.1.10"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "io.codex.minecraft.ragbots",
+    "productName": "Minecraft RAG Bots",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "src/**/*",
+      "package.json",
+      "Modelfile"
+    ],
+    "extraMetadata": {
+      "main": "desktop/main.js"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "${productName}-${version}-Windows-Setup-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "artifactName": "${productName}-${version}-Linux-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.games",
+      "artifactName": "${productName}-${version}-macOS-${arch}.${ext}"
+    }
+  }
+}

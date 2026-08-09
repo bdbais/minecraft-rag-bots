@@ -1,0 +1,9 @@
+node_modules/
+dist/
+outputs/
+work/
+.env
+data/memory.json
+data/
+technical-log-*.jsonl
+npm-debug.log*

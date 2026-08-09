@@ -1,0 +1,175 @@
+const api = window.botsApi
+let configs = [], snapshots = new Map(), selected = null, hiddenLogBefore = 0, reportedSelection = undefined
+const iconCache = new Map()
+let mapData=null,mapZoom=6,mapCenter={x:0,z:0},mapFollow=true
+const mapPoiFilters=new Set(['team','storage','resource','danger','portal','workstation'])
+const $ = s => document.querySelector(s)
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600) }
+async function safe(fn) { try { await fn() } catch (e) { toast(e.message || String(e)) } }
+const prettyName = name => String(name).split('_').map(x => x[0]?.toUpperCase() + x.slice(1)).join(' ')
+const genderMeta = gender => ({ male: { label: 'Maschio', symbol: '♂' }, female: { label: 'Femmina', symbol: '♀' }, neutral: { label: 'Neutro', symbol: '●' } }[gender] || { label: 'Neutro', symbol: '●' })
+const avatarHtml = gender => { const g = ['male','female','neutral'].includes(gender) ? gender : 'neutral'; return `<div class="botAvatar ${g}"><i></i><span>${genderMeta(g).symbol}</span></div>` }
+function formatPlayTime(onlineSince){if(!onlineSince)return'00:00:00';const seconds=Math.max(0,Math.floor((Date.now()-new Date(onlineSince).getTime())/1000)),hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`}
+function formatDuration(seconds=0){seconds=Math.max(0,Math.floor(seconds));const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`}
+const formatKm=value=>(Number(value)||0).toLocaleString('it-IT',{minimumFractionDigits:3,maximumFractionDigits:3})
+const helpTips = {
+  emergencyStop:'Ferma immediatamente tutti i bot e annulla anche le richieste AI in attesa.', newBot:'Crea e configura un nuovo giocatore controllato dall’AI.',
+  closeOllamaSetup:'Chiude la configurazione guidata. Puoi riaprirla dal menu Help.', useCloudOnly:'Salta Ollama: potrai configurare i bot con un servizio AI Cloud.', installOllama:'Installa il motore AI locale Ollama; su Linux e macOS apre il download ufficiale.', startOllama:'Avvia il servizio Ollama già installato sul computer.', setupModels:'Scarica i modelli necessari e crea automaticamente minecraft-agent.',
+  editBot:'Apre le impostazioni del bot selezionato.', toggleAI:'START AI connette e avvia il bot; STOP AI arresta l’AI e lo disconnette dal server.', sendPrompt:'Invia questa istruzione soltanto al bot selezionato.', sendTeamPrompt:'Invia questa istruzione a tutti i bot connessi.',
+  worldMap:'Apre la mappa GPS delle zone esplorate dal bot.',mapFollow:'Attiva o disattiva il GPS che mantiene il bot al centro.',mapZoomOut:'Riduce la scala della mappa.',mapZoomIn:'Ingrandisce la mappa.',mapCenter:'Riporta la mappa sulla posizione corrente del bot e riattiva il GPS.',closeWorldMap:'Chiude la mappa.',
+  exportBenchmark:'Esporta un report confrontabile con modello, hardware, VRAM dichiarata da Ollama e indice MBPI.',
+  exportBiography:'Salva su file la cronologia completa del bot selezionato.', generateBook:'Usa l’AI per trasformare le cronache dei bot e del mondo in un racconto epico.', copyLogs:'Copia negli appunti un report JSON con log, modello e statistiche, senza credenziali.', exportLogs:'Salva un report JSON completo per analizzare e confrontare il comportamento del modello.', clearLogs:'Nasconde i messaggi tecnici mostrati finora.',
+  closeDialog:'Chiude questa finestra senza salvare.', cancelDialog:'Annulla le modifiche e chiude la configurazione.', deleteBot:'Elimina la configurazione del bot selezionato.',
+  saveBot:'Salva le modifiche senza cambiare lo stato di connessione del bot.', connectBot:'Connette il bot se è offline oppure lo disconnette se è già attivo.',
+  prompt:'Scrivi un obiettivo, una correzione o un ordine in linguaggio naturale.',
+  aiProvider:'Sceglie se il bot usa Ollama sul computer oppure un servizio AI cloud.', cloudBaseUrl:'Indirizzo delle API del servizio cloud compatibile OpenAI.', cloudModel:'Nome del modello cloud usato per ragionare e decidere le azioni.', cloudEmbedModel:'Modello cloud che trasforma ricordi e conoscenze in memoria RAG.', cloudApiKey:'Chiave privata del servizio cloud. Viene cifrata sul computer e non viene esportata.',
+  name:'Nome mostrato nell’interfaccia per riconoscere il bot.', visionRadius:'Distanza della percezione strategica. 48 blocchi è consigliato; 64 usa più CPU quando avvii molti bot.', gender:'Identità del bot; modifica anche l’aspetto del suo avatar.', personality:'Ruolo prevalente e stile di gioco del bot.', temperament:'Tendenza emotiva che influenza reazioni, collaborazione e prudenza.', strength:'Forza fisica in stile GURPS: influenza la propensione a trasportare, scavare e combattere.', dexterity:'Destrezza in stile GURPS: influenza movimento, precisione e lavori delicati.', intelligence:'Intelligenza in stile GURPS: influenza pianificazione e risoluzione dei problemi.', vitality:'Salute psicofisica in stile GURPS: influenza resistenza e tolleranza al rischio.', willpower:'Capacità di controllare paura, stress e impulsi.', perception:'Attenzione verso risorse, pericoli, chest e compagni.', fear:'Paura primaria che il bot cercherà di gestire con comportamenti realistici.', phobia:'Tratto libero che aggiunge una paura, avversione o peculiarità personale.', username:'Per server ufficiali inserisci l’email Microsoft. Ogni bot conserva una sessione separata; la password non entra mai nell’app.', host:'Indirizzo del server Minecraft, per esempio localhost.', port:'Porta di ascolto del server Minecraft; normalmente 25565.', auth:'Offline per server privati; Microsoft per server online-mode con un account Minecraft Java valido.', version:'Versione Minecraft del server. Lascia Auto se vuoi il rilevamento automatico.', ollamaUrl:'Indirizzo del servizio Ollama installato sul computer.', model:'Modello Ollama che pianifica e sceglie le azioni del bot.', embedModel:'Modello Ollama usato per cercare nella memoria RAG.', intervalMs:'Tempo minimo, in millisecondi, tra due cicli decisionali del bot.', actionTimeoutSeconds:'Tempo massimo concesso a una singola azione prima di considerarla bloccata.', planTimeoutSeconds:'Tempo massimo concesso al modello AI per produrre un piano.', autoStart:'Avvia il ragionamento autonomo appena il bot entra nel server.', listenChat:'Permette al bot di leggere la chat Minecraft e interpretarla come istruzioni.'
+}
+function applyHelpTips(root = document) {
+  root.querySelectorAll('button,input,select,textarea').forEach(el => {
+    const key = el.id || el.name
+    let tip = helpTips[key]
+    if (!tip && el.dataset.act) tip = ({start:'Avvia o riprende il comportamento autonomo del bot.',stop:'Mette in pausa l’AI senza disconnettere il giocatore.',disconnect:'Fa uscire il bot dal server Minecraft.'})[el.dataset.act]
+    if (!tip && el.closest('.quick')) tip = `Inserisce il comando rapido “${el.textContent.trim()}” nel campo delle istruzioni.`
+    if (!tip && el.type === 'submit') tip = 'Salva le impostazioni e riconnette il bot con la nuova configurazione.'
+    if (!tip) tip = el.closest('label')?.childNodes[0]?.textContent?.trim() || el.textContent.trim() || 'Controllo dell’interfaccia'
+    el.title = tip; el.setAttribute('aria-label', el.getAttribute('aria-label') || tip)
+  })
+  root.querySelectorAll('.botItem').forEach(el => { el.title = 'Seleziona questo bot per vedere stato, inventario, memoria e comandi.' });root.querySelectorAll('.botDelete').forEach(el=>{el.title='Elimina questa configurazione dopo una richiesta di conferma.';el.setAttribute('aria-label','Elimina bot')})
+  root.querySelectorAll('.stats article').forEach(el => { el.title = `Mostra ${el.querySelector('label')?.textContent.toLowerCase() || 'una statistica'} del bot selezionato.` })
+}
+async function refreshOllamaSetup(open = false) {
+  const dialog = $('#ollamaSetup'); if (open && !dialog.open) dialog.showModal()
+  $('#ollamaStatus').innerHTML = 'Verifica in corso…'
+  const status = await api.ollamaStatus()
+  const platformNote = status.platform === 'win32' ? 'L’installazione automatica usa Windows Package Manager.' : 'Il pulsante di installazione apre il download ufficiale per questo sistema.'
+  const rec=status.recommendation,choice=status.selection;$('#ollamaStatus').innerHTML = `<div class="${status.installed?'ok':'bad'}">${status.installed?'✓':'×'} Ollama ${status.installed?'installato':'non rilevato'}</div><div class="${status.running?'ok':'bad'}">${status.running?'✓':'×'} Servizio ${status.running?'in esecuzione':'non raggiungibile'}</div><div class="${status.hasMinecraftAgent?'ok':'bad'}">${status.hasMinecraftAgent?'✓':'×'} Modello minecraft-agent</div><div class="${status.hasEmbeddingModel?'ok':'bad'}">${status.hasEmbeddingModel?'✓':'×'} Memoria RAG nomic-embed-text</div><div class="${status.baseModelCurrent?'ok':'bad'}">${status.baseModelCurrent?'✓':'×'} Skill base aggiornate</div>${rec?`<div class="ok">◆ Consigliato: ${esc(rec.baseModel)} (${esc(rec.tier)})</div><div>Emergenza timeout: ${esc(rec.fallbackModel)}</div>`:''}${choice?`<div class="ok">✓ Scelto dal test: ${esc(choice.selectedBase)}${choice.benchmarkMs?` · ${(choice.benchmarkMs/1000).toFixed(1)}s`:''}</div>`:''}`
+  $('#ollamaDescription').textContent = status.ready ? `Motore pronto. Profilo hardware: ${rec?.reason||'rilevato automaticamente'}.` : `${platformNote} ${rec?`Modello scelto: ${rec.baseModel}, perché ${rec.reason}.`:''}`
+  $('#installOllama').classList.toggle('hidden', status.installed)
+  $('#startOllama').classList.toggle('hidden', !status.installed || status.running)
+  $('#setupModels').classList.toggle('hidden', !status.installed || !status.running); $('#setupModels').textContent=status.baseModelCurrent?'Reinstalla modello base':'Aggiorna modello base'
+  return status
+}
+function setOllamaBusy(busy) { for (const id of ['installOllama','startOllama','setupModels','useCloudOnly','closeOllamaSetup']) $( `#${id}` ).disabled = busy }
+function terrainColor(name='unknown'){if(/water/.test(name))return'#285a86';if(/lava|magma/.test(name))return'#c44b20';if(/grass|leaves|moss|vine/.test(name))return'#477d45';if(/sand|sandstone/.test(name))return'#b9a66a';if(/snow|ice/.test(name))return'#c9e0e3';if(/dirt|mud|podzol/.test(name))return'#765335';if(/stone|ore|deepslate|gravel/.test(name))return'#626b6d';if(/log|wood|planks/.test(name))return'#76562f';return'#34443d'}
+function centerMap(){const p=mapData?.position||mapData?.trail?.at(-1);if(p)mapCenter={x:p.x,z:p.z};else if(mapData?.cells?.length)mapCenter={x:mapData.cells.reduce((n,c)=>n+c.x*mapData.cellSize,0)/mapData.cells.length,z:mapData.cells.reduce((n,c)=>n+c.z*mapData.cellSize,0)/mapData.cells.length};drawWorldMap()}
+function mapDistance(trail=[]){let n=0;for(let i=1;i<trail.length;i++)n+=Math.hypot(trail[i].x-trail[i-1].x,trail[i].z-trail[i-1].z);return Math.round(n)}
+function drawWorldMap(){if(!mapData)return;const canvas=$('#mapCanvas'),ctx=canvas.getContext('2d'),toX=x=>canvas.width/2+(x-mapCenter.x)*mapZoom,toY=z=>canvas.height/2+(z-mapCenter.z)*mapZoom;ctx.fillStyle='#061014';ctx.fillRect(0,0,canvas.width,canvas.height);for(const cell of mapData.cells||[]){const size=Math.max(2,mapData.cellSize*mapZoom);ctx.fillStyle=terrainColor(cell.block);ctx.fillRect(toX(cell.x*mapData.cellSize),toY(cell.z*mapData.cellSize),size+1,size+1)}const trail=mapData.trail||[];if(trail.length){ctx.strokeStyle='#9de47d';ctx.lineWidth=2;ctx.beginPath();trail.forEach((p,i)=>(i?ctx.lineTo(toX(p.x),toY(p.z)):ctx.moveTo(toX(p.x),toY(p.z))));ctx.stroke()}const symbols={team:['#fff176','★'],storage:['#f2c34e','■'],resource:['#65d6ff','◆'],danger:['#ff704d','▲'],portal:['#c678ff','◉'],workstation:['#e4e7d0','⚒']},pois=[...(mapData.pois||[]),...(mapData.chests||[]).map(x=>({...x,name:x.type||'chest',category:'storage'})),...(mapData.teamCheckpoints||[]).map(x=>({...x,name:x.label,category:'team'}))];ctx.font='bold 15px Segoe UI';ctx.textAlign='center';for(const poi of pois){if(!mapPoiFilters.has(poi.category))continue;const [color,symbol]=symbols[poi.category]||['#fff','•'];ctx.fillStyle=color;ctx.fillText(symbol,toX(poi.x),toY(poi.z)+5)}ctx.textAlign='start';if(mapData.position){ctx.fillStyle='#ff5964';ctx.beginPath();ctx.arc(toX(mapData.position.x),toY(mapData.position.z),7,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke()}ctx.fillStyle='#d8e5df';ctx.font='12px Segoe UI';ctx.fillText(`Centro X ${Math.round(mapCenter.x)} · Z ${Math.round(mapCenter.z)} · ${mapData.cells?.length||0} celle esplorate`,12,20);const p=mapData.position,cell=p&&(mapData.cells||[]).find(c=>c.x===Math.floor(p.x/mapData.cellSize)&&c.z===Math.floor(p.z/mapData.cellSize)),life=mapData.lifetime;$('#mapTelemetry').textContent=`${p?`GPS X ${p.x} · Y ${p.y} · Z ${p.z} · Terreno: ${prettyName(cell?.block||'sconosciuto')}`:'Ultima posizione non disponibile'} · Vita: ${formatKm(life?.distanceKm)} km · Checkpoint ${mapData.teamCheckpoints?.length||0} · Giocatori ${life?.playersEncountered||0} · Bot ${life?.botsEncountered||0} · Animali ${life?.animalsKilled||0} · Materiali ${life?.materialsCollected||0}`}
+async function openWorldMap(){mapData=await api.getMap(selected);mapZoom=6;mapFollow=true;$('#mapFollow').textContent='GPS ON';$('#mapFollow').classList.add('active');$('#mapTitle').textContent=`Mappa di ${configs.find(x=>x.id===selected)?.name||'bot'}`;$('#worldMapDialog').showModal();centerMap()}
+async function renderInventory(game, version, botId) {
+  const inv=game?.inventory||{},hotbar=Array.isArray(game?.hotbar)?game.hotbar:Array(9).fill(null),held=game?.heldItem||null,names=[...new Set([...Object.keys(inv),...hotbar.filter(Boolean).map(x=>x.name),...(held?[held.name]:[])])],missing = names.filter(name => !iconCache.has(`${version}:${name}`))
+  if (missing.length) {
+    const icons = await api.itemIcons(missing, version)
+    for (const name of missing) iconCache.set(`${version}:${name}`, icons[name] || '')
+  }
+  if (selected !== botId) return
+  const itemHtml=(item,extra='')=>{if(!item)return`<div class="item-slot empty-slot ${extra}"></div>`;const icon=iconCache.get(`${version}:${item.name}`),tip=`${prettyName(item.name)}\nID: ${item.name}\nQuantità: ${item.count}${Number.isInteger(item.slot)?`\nSlot rapido: ${item.slot+1}`:''}`;return`<div class="item-slot ${extra}" data-tip="${esc(tip)}">${icon?`<img src="${icon}" alt="${esc(item.name)}">`:`<span class="item-fallback">${esc(item.name.slice(0,2).toUpperCase())}</span>`}<b>${item.count}</b></div>`}
+  $('#hotbar').innerHTML=hotbar.map((item,index)=>itemHtml(item,index===game.selectedHotbarSlot?'selected-slot':'')).join('')
+  $('#heldItem').innerHTML=held?`<div class="held-card">${itemHtml(held,'held-slot')}<div><b>${esc(prettyName(held.name))}</b><small>In mano · slot ${(held.slot??game.selectedHotbarSlot??0)+1} · quantità ${held.count}</small></div></div>`:'<span class="chip">mano vuota</span>'
+  const slots = Object.entries(inv).map(([name, count]) => {
+    const icon = iconCache.get(`${version}:${name}`); const tip = `${prettyName(name)}\nID: ${name}\nQuantità: ${count}`
+    return `<div class="item-slot" data-tip="${esc(tip)}">${icon ? `<img src="${icon}" alt="${esc(name)}">` : `<span class="item-fallback">${esc(name.slice(0,2).toUpperCase())}</span>`}<b>${count}</b></div>`
+  })
+  while (slots.length < 27) slots.push('<div class="item-slot empty-slot"></div>')
+  $('#inventory').innerHTML = slots.slice(0, 45).join('')
+}
+
+function renderList() {
+  const groups = new Map()
+  for (const c of configs) { const key = `${c.host}:${c.port}`; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(c) }
+  $('#botList').innerHTML = [...groups.entries()].map(([server,bots]) => `<section class="serverGroup"><div class="serverGroupTitle">${esc(server)} <span>${bots.length}</span></div>${bots.map(c => { const s = snapshots.get(c.id), g = c.gender || 'neutral', type = prettyName(c.personality || 'balanced'), engine = c.aiProvider === 'cloud' ? 'Cloud' : 'Locale'; return `<div class="botItem ${selected===c.id?'active':''}" data-id="${c.id}"><div class="botItemMain">${avatarHtml(g)}<div><b>${esc(c.name)}<span class="genderLabel">${genderMeta(g).label} · ${esc(type)} · ${engine}</span></b><small>${esc(c.username)}</small></div></div><div class="botItemTools"><i class="dot ${s?.connection==='online'?'online':''}"></i><button class="botDelete" data-delete-id="${c.id}">×</button></div></div>` }).join('')}</section>`).join('')
+  document.querySelectorAll('.botItem').forEach(el => el.onclick = () => { selected = el.dataset.id; hiddenLogBefore = 0; render() })
+  document.querySelectorAll('.botDelete').forEach(button=>button.onclick=e=>{e.stopPropagation();removeBot(button.dataset.deleteId)})
+}
+function render() {
+  if (reportedSelection !== selected) { reportedSelection = selected; api.setSelectedBot(selected) }
+  renderList(); const cfg = configs.find(x => x.id === selected), s = snapshots.get(selected)
+  $('#empty').classList.toggle('hidden', !!cfg); $('#dashboard').classList.toggle('hidden', !cfg); applyHelpTips(); if (!cfg) return
+  const gender = cfg.gender || 'neutral', aiLabel = cfg.aiProvider === 'cloud' ? `Cloud · ${cfg.cloudModel}` : `Ollama · ${s?.runtimeModel||cfg.model}`; $('#title').textContent = `${cfg.name} · ${genderMeta(gender).label}`; $('#server').textContent = `${cfg.username} · ${cfg.host}:${cfg.port} · ${cfg.personality || 'balanced'} · ${aiLabel}`
+  $('#heroAvatar').className = `botAvatar ${gender}`; $('#heroAvatar span').textContent = genderMeta(gender).symbol
+  const conn = s?.connection || 'offline'; $('#connection').textContent = conn.toUpperCase(); $('#connection').className = `badge ${conn}`
+  const hasSession=!!s;$('#toggleAI').textContent=hasSession?'STOP AI':'START AI';$('#toggleAI').classList.toggle('danger',hasSession);$('#toggleAI').classList.toggle('stopAI',hasSession);$('#toggleAI').classList.toggle('primary',!hasSession)
+  const game = s?.game
+  $('#health').textContent = game ? `${Math.round(game.health)}/20` : '—'; $('#healthBar').style.width = `${(game?.health || 0)*5}%`
+  $('#food').textContent = game ? `${Math.round(game.food)}/20` : '—'; $('#foodBar').style.width = `${(game?.food || 0)*5}%`
+  $('#steps').textContent = s?.steps || 0; $('#successes').textContent = s?.successes || 0; $('#failures').textContent = s?.failures || 0; $('#memories').textContent = s?.memories || 0; $('#lessons').textContent = s?.learnedLessons || 0
+  const life=s?.lifetime||cfg.lifetime||{};$('#distanceKm').textContent=formatKm(life.distanceKm);$('#playersMet').textContent=life.playersEncountered||0;$('#botsMet').textContent=life.botsEncountered||0;$('#animalsKilled').textContent=life.animalsKilled||0;$('#materialsCollected').textContent=life.materialsCollected||0;$('#materialsCollected').title=(life.topMaterials||[]).map(x=>`${prettyName(x.name)} ×${x.count}`).join('\n')||'Nessun materiale registrato'
+  $('#playTime').textContent=formatPlayTime(s?.onlineSince);$('#totalPlayTime').textContent=formatDuration(life.totalPlaySeconds||0);const startup=s?.startup||{},startupEl=$('#startupAverage');startupEl.textContent=startup.averageMs!=null?`${(startup.averageMs/1000).toFixed(1)}s`:startup.currentWaitMs!=null?`${(startup.currentWaitMs/1000).toFixed(1)}s…`:'—';startupEl.title=`Media ultime ${startup.samples||0} partenze${startup.lastMs!=null?` · ultima ${(startup.lastMs/1000).toFixed(1)}s`:''}${startup.minMs!=null?` · min ${(startup.minMs/1000).toFixed(1)}s · max ${(startup.maxMs/1000).toFixed(1)}s`:''}${startup.currentWaitMs!=null?` · attesa corrente ${(startup.currentWaitMs/1000).toFixed(1)}s`:''}`
+  const perf=s?.performance;$('#performance').textContent=perf?`${perf.score}${perf.provisional?' *':''}`:'—';$('#performance').title=perf?`${perf.version} · ${perf.confidence}% affidabilità · ${perf.successRate}% successi · ${perf.actionsPerMinute} azioni/min · piano medio ${perf.averagePlanningMs} ms${perf.provisional?' · provvisorio fino a 20 azioni':''}`:'Il punteggio appare dopo le prime azioni.'
+  const p = game?.position; const mates = (s?.teammates || []).map(x => `${x.name} (${x.personality})`).join(', ') || 'nessuno'; const inf = s?.inference || {}; $('#playerState').innerHTML = `<dt>AI</dt><dd>${s?.running?'in esecuzione':'in pausa'}</dd><dt>Coda Ollama</dt><dd>${inf.active || 0} attiva · ${inf.queued || 0} in attesa</dd><dt>Obiettivo</dt><dd>${esc(s?.lastGoal||'—')}</dd><dt>Squadra</dt><dd>${esc(mates)}</dd><dt>Posizione</dt><dd>${p?`${p.x}, ${p.y}, ${p.z}`:'—'}</dd><dt>Dimensione</dt><dd>${esc(game?.dimension||'—')}</dd><dt>Ossigeno</dt><dd>${game?.oxygen ?? '—'}</dd>`
+  $('#queueState').textContent = s ? `${s.phase || 'idle'} · prompt ${s.queuedPrompts || 0}` : 'offline'
+  $('#skills').innerHTML = (s?.skills || []).length ? s.skills.map(x => `<span class="chip" title="${esc(x.bestLesson || 'Nessuna strategia stabile')}">${esc(x.action)} · ${Math.round(x.successRate * 100)}% (${x.attempts})</span>`).join('') : '<span class="chip">nessuna esperienza</span>'
+  $('#worldKnowledge').innerHTML=(s?.worldKnowledge?.rememberedLocations||[]).length?s.worldKnowledge.rememberedLocations.slice(0,12).map(c=>`<div class="chest"><b>◇ ${esc(prettyName(c.name))}</b><small>${c.x}, ${c.y}, ${c.z} · ${c.distance} blocchi</small><time>${c.sightings||1} avvistamenti · ${c.lastSeen?new Date(c.lastSeen).toLocaleString():''}</time></div>`).join(''):'<span class="chip">nessun luogo ricordato</span>'
+  $('#teamCheckpoints').innerHTML=(s?.teamCheckpoints||[]).length?s.teamCheckpoints.slice(0,12).map(c=>`<div class="chest"><b>★ ${esc(prettyName(c.type))}: ${esc(prettyName(c.label))}</b><small>${c.x}, ${c.y}, ${c.z} · ${esc(prettyName(c.dimension))}${c.note?` · ${esc(c.note)}`:''}</small><time>Da ${esc((c.reporters||[]).join(', '))}</time></div>`).join(''):'<span class="chip">nessun checkpoint condiviso</span>'
+  $('#chests').innerHTML = (s?.chests || []).length ? s.chests.map(c=>`<div class="chest"><b>▣ ${c.x}, ${c.y}, ${c.z}</b><small>${c.contents?.length ? c.contents.map(x=>`${esc(prettyName(x.name))} ×${x.count}`).join(', ') : 'Contenuto non ancora ispezionato'}</small><time>${c.seenAt ? new Date(c.seenAt).toLocaleString() : ''}</time></div>`).join('') : '<span class="chip">nessuna chest scoperta</span>'
+  renderInventory(game, s?.minecraftVersion || '1.21.4', selected).catch(() => {})
+  const logs = (s?.logs || []).slice(hiddenLogBefore),logBox=$('#logs'),selection=window.getSelection(),selecting=selection&&!selection.isCollapsed&&logBox.contains(selection.anchorNode);if(!selecting){logBox.innerHTML=logs.map(l=>`<div class="log ${l.level}"><span>${new Date(l.at).toLocaleTimeString()}</span> · ${esc(l.message)}</div>`).join('');logBox.scrollTop=logBox.scrollHeight}
+  $('#biographyCount').textContent = `${s?.biographyCount || 0} eventi nella storia`
+  $('#biography').innerHTML = (s?.biography || []).map(e => `<article class="bio-event ${esc(e.type)}"><time>${new Date(e.at).toLocaleString()}</time>${e.weather?`<span class="bioWeather ${esc(e.weather.kind)}" title="Bioma: ${esc(prettyName(e.weather.biome||'sconosciuto'))} · Pioggia ${e.weather.rainLevel||0}% · Tuoni ${e.weather.thunderLevel||0}%">${esc(e.weather.icon)} ${esc(e.weather.label)}</span>`:''}<h4>${esc(e.title)}</h4><p>${esc(e.text)}</p></article>`).join('') || '<article class="bio-event"><h4>La storia deve ancora cominciare</h4><p>Connetti il bot al mondo per aprire il primo capitolo.</p></article>'
+  applyHelpTips()
+}
+
+function openEditor(cfg = null) {
+  const form = $('#botForm'); form.reset(); form.elements.id.value = cfg?.id || ''
+  $('#editorTitle').textContent = cfg ? 'Modifica bot' : 'Nuovo bot'; $('#deleteBot').classList.toggle('hidden', !cfg)
+  if (cfg) for (const [key, value] of Object.entries(cfg)) { if (form.elements[key] && key !== 'autoStart') form.elements[key].value = value ?? '' }
+  form.autoStart.checked = cfg ? cfg.autoStart !== false : true
+  form.listenChat.checked = cfg ? cfg.listenChat !== false : true
+  form.gender.value = cfg?.gender || 'neutral'
+  form.aiProvider.value = cfg?.aiProvider || 'local'
+  form.cloudApiKey.value = ''
+  form.cloudApiKey.placeholder = cfg?.hasCloudApiKey ? 'Chiave già salvata — lascia vuoto per mantenerla' : 'Inserisci la API key'
+  form.actionTimeoutSeconds.value = Math.round((cfg?.actionTimeoutMs || 45000) / 1000)
+  form.planTimeoutSeconds.value = Math.round((cfg?.planTimeoutMs || 120000) / 1000)
+  for (const name of ['strength','dexterity','intelligence','vitality','willpower','perception']) form.elements[name].value = cfg?.[name] ?? 10
+  form.temperament.value = cfg?.temperament || 'calm'; form.fear.value = cfg?.fear || 'none'
+  const connected = !!(cfg && snapshots.has(cfg.id)); $('#connectBot').textContent = connected ? 'Disconnetti bot' : 'Connetti bot'; $('#connectBot').classList.toggle('danger', connected)
+  $('#editor').showModal()
+  toggleAIFields()
+}
+function toggleAIFields() {
+  const cloud = $('#botForm').aiProvider.value === 'cloud'
+  document.querySelectorAll('.cloudField').forEach(x => x.classList.toggle('hidden', !cloud))
+  for (const name of ['ollamaUrl','model','embedModel']) $('#botForm').elements[name]?.closest('label')?.classList.toggle('hidden', cloud)
+}
+$('#aiProvider').onchange = toggleAIFields
+$('#newBot').onclick = () => openEditor(); $('#editBot').onclick = () => openEditor(configs.find(x => x.id === selected)); $('#closeDialog').onclick = $('#cancelDialog').onclick = () => $('#editor').close()
+async function saveBotForm(form) {
+  const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, listenChat: form.listenChat.checked, allowPvp: false }
+  for(const name of ['strength','dexterity','intelligence','vitality','willpower','perception']) cfg[name]=Number(raw[name])||10
+  delete cfg.actionTimeoutSeconds; delete cfg.planTimeoutSeconds
+  const previous = configs.find(x => x.id === id)
+  if (cfg.aiProvider === 'cloud' && !cfg.cloudApiKey && !previous?.hasCloudApiKey) throw new Error('Inserisci una API key per il provider cloud')
+  const oldIndex = configs.findIndex(x => x.id === id); if (oldIndex >= 0) configs[oldIndex] = cfg; else configs.push(cfg)
+  configs = await api.saveConfigs(configs); selected=id; return {cfg:configs.find(x=>x.id===id),oldIndex}
+}
+$('#botForm').onsubmit = e => safe(async () => { e.preventDefault(); const {oldIndex}=await saveBotForm(e.target); $('#editor').close(); render(); toast(oldIndex>=0 ? 'Modifiche salvate; saranno applicate alla prossima connessione' : 'Configurazione salvata') })
+$('#connectBot').onclick = () => safe(async()=>{const form=$('#botForm'),id=form.elements.id.value;if(id&&snapshots.has(id)){await api.disconnect(id);snapshots.delete(id);$('#connectBot').textContent='Connetti bot';$('#connectBot').classList.remove('danger');render();toast('Bot disconnesso');return}const {cfg}=await saveBotForm(form);$('#editor').close();render();await api.connect(cfg);toast('Connessione avviata')})
+async function removeBot(id){return safe(async()=>{const cfg=configs.find(x=>x.id===id);if(!cfg||!confirm(`Eliminare definitivamente la configurazione “${cfg.name}”?`))return;if(snapshots.has(id))await api.disconnect(id);configs=configs.filter(x=>x.id!==id);configs=await api.saveConfigs(configs);snapshots.delete(id);if(selected===id)selected=configs[0]?.id||null;$('#editor').open&&$('#editor').close();render();toast('Configurazione eliminata')})}
+$('#deleteBot').onclick = () => removeBot($('#botForm').elements.id.value)
+$('#toggleAI').onclick=()=>safe(async()=>{if(!selected)return;const button=$('#toggleAI');button.disabled=true;try{const active=snapshots.has(selected);if(active){await api.stop(selected);await api.disconnect(selected);snapshots.delete(selected);render();toast('AI arrestata e bot disconnesso');return}const cfg=configs.find(x=>x.id===selected);if(!cfg)throw new Error('Configurazione del bot non trovata');snapshots.set(selected,{id:selected,name:cfg.name,connection:'connecting',startRequested:true});render();await api.connect(cfg);const result=await api.start(selected);toast(result?.queued?'Connessione avviata: l’AI partirà dopo il bootstrap':'Bot connesso e AI avviata')}catch(error){snapshots.delete(selected);render();throw error}finally{button.disabled=false}})
+$('#sendPrompt').onclick = () => safe(async () => { const text = $('#prompt').value.trim(); if (!text) return; await api.prompt(selected,text); $('#prompt').value=''; toast('Istruzione inserita in coda') })
+$('#sendTeamPrompt').onclick = () => safe(async () => { const text = $('#prompt').value.trim(); if (!text) return; const count = await api.promptAll(text); $('#prompt').value=''; toast(`Istruzione inviata a ${count} bot`) })
+document.querySelectorAll('.quick button').forEach(b => b.onclick = () => { $('#prompt').value = b.textContent })
+$('#clearLogs').onclick = () => { hiddenLogBefore = snapshots.get(selected)?.logs?.length || 0; render() }
+$('#copyLogs').onclick=()=>safe(async()=>{const count=await api.copyTechnicalLog(selected);toast(`Report copiato: ${count} eventi tecnici`)})
+$('#exportLogs').onclick=()=>safe(async()=>{if(await api.exportTechnicalLog(selected))toast('Report tecnico esportato')})
+$('#exportBiography').onclick = () => safe(async () => { const saved = await api.exportBiography(selected); if (saved) toast('Biografia esportata') })
+$('#exportBenchmark').onclick = () => safe(async()=>{const saved=await api.exportBenchmark(selected);if(saved)toast('Benchmark esportato: condividilo per il confronto')})
+$('#generateBook').onclick = () => safe(async () => { const button = $('#generateBook'); button.disabled = true; $('#bookProgress').classList.remove('hidden'); try { const saved = await api.generateEpicBook(selected); if (saved) toast('Libro epico completato') } finally { button.disabled = false; setTimeout(() => $('#bookProgress').classList.add('hidden'), 2500) } })
+$('#emergencyStop').onclick = () => safe(async () => { const count = await api.stopAll(); toast(`${count} bot arrestati e coda AI annullata`) })
+$('#worldMap').onclick=()=>safe(openWorldMap);$('#closeWorldMap').onclick=()=>$('#worldMapDialog').close();$('#mapZoomIn').onclick=()=>{mapZoom=Math.min(24,mapZoom*1.35);drawWorldMap()};$('#mapZoomOut').onclick=()=>{mapZoom=Math.max(1.5,mapZoom/1.35);drawWorldMap()};$('#mapCenter').onclick=()=>{mapFollow=true;$('#mapFollow').textContent='GPS ON';$('#mapFollow').classList.add('active');centerMap()};$('#mapFollow').onclick=()=>{mapFollow=!mapFollow;$('#mapFollow').textContent=mapFollow?'GPS ON':'GPS OFF';$('#mapFollow').classList.toggle('active',mapFollow);if(mapFollow)centerMap()};document.querySelectorAll('[data-poi]').forEach(b=>b.onclick=()=>{const key=b.dataset.poi;if(mapPoiFilters.has(key))mapPoiFilters.delete(key);else mapPoiFilters.add(key);b.classList.toggle('active',mapPoiFilters.has(key));drawWorldMap()})
+$('#mapCanvas').onmousemove=e=>{if(!mapData)return;const canvas=$('#mapCanvas'),rect=canvas.getBoundingClientRect(),px=(e.clientX-rect.left)*canvas.width/rect.width,py=(e.clientY-rect.top)*canvas.height/rect.height,x=mapCenter.x+(px-canvas.width/2)/mapZoom,z=mapCenter.z+(py-canvas.height/2)/mapZoom,cx=Math.floor(x/mapData.cellSize),cz=Math.floor(z/mapData.cellSize),cell=(mapData.cells||[]).find(c=>c.x===cx&&c.z===cz),hover=$('#mapHover');if(!cell){hover.classList.add('hidden');return}hover.textContent=`X ${Math.floor(x)} · Z ${Math.floor(z)} · ${prettyName(cell.block)} · Y ${cell.y}`;hover.style.left=`${e.clientX-rect.left}px`;hover.style.top=`${e.clientY-rect.top}px`;hover.classList.remove('hidden')};$('#mapCanvas').onmouseleave=()=>$('#mapHover').classList.add('hidden')
+$('#closeOllamaSetup').onclick = $('#useCloudOnly').onclick = () => { localStorage.setItem('ollamaSetupDismissed','1'); $('#ollamaSetup').close() }
+$('#installOllama').onclick = () => safe(async()=>{setOllamaBusy(true);try{const result=await api.ollamaInstall();if(result.external)toast('Completa l’installazione dal sito ufficiale, poi riapri la verifica dal menu Help');else toast('Ollama installato');await refreshOllamaSetup()}finally{setOllamaBusy(false)}})
+$('#startOllama').onclick = () => safe(async()=>{setOllamaBusy(true);try{await api.ollamaStart();toast('Ollama avviato');await refreshOllamaSetup()}finally{setOllamaBusy(false)}})
+$('#setupModels').onclick = () => safe(async()=>{setOllamaBusy(true);$('#ollamaProgress').classList.remove('hidden');try{const status=await api.ollamaSetupModels();if(status.ready){toast('Ollama e minecraft-agent sono pronti');localStorage.removeItem('ollamaSetupDismissed')}await refreshOllamaSetup()}finally{setOllamaBusy(false)}})
+api.onOllamaProgress(p=>{$('#ollamaProgress').classList.remove('hidden');$('#ollamaProgress i').style.width=`${Math.max(5,p.percent||5)}%`;$('#ollamaProgress span').textContent=p.message})
+api.onOllamaOpen(()=>safe(()=>refreshOllamaSetup(true)))
+api.onBookProgress(p => { $('#bookProgress').classList.remove('hidden'); $('#bookProgress i').style.width = `${Math.max(5, Math.round((p.current / p.total) * 100))}%`; $('#bookProgress span').textContent = p.message })
+api.onUpdate(s => { snapshots.set(s.id,s); render() }); api.onRemoved(id => { snapshots.delete(id); render() })
+setInterval(()=>{const s=snapshots.get(selected),el=$('#playTime'),total=$('#totalPlayTime'),startupEl=$('#startupAverage');if(el&&!$('#dashboard').classList.contains('hidden')){el.textContent=formatPlayTime(s?.onlineSince);if(total)total.textContent=formatDuration(s?.lifetime?.totalPlaySeconds||configs.find(x=>x.id===selected)?.lifetime?.totalPlaySeconds||0);const startup=s?.startup;if(startupEl&&startup?.currentWaitMs!=null)startupEl.textContent=`${((startup.currentWaitMs+Date.now()-(startup.measuredAt||Date.now()))/1000).toFixed(1)}s…`}},1000)
+setInterval(()=>{if($('#worldMapDialog').open&&selected)api.getMap(selected).then(data=>{mapData=data;if(mapFollow&&data.position)mapCenter={x:data.position.x,z:data.position.z};drawWorldMap()}).catch(()=>{})},5000)
+applyHelpTips()
+;(async () => { configs = await api.listConfigs(); (await api.listBots()).forEach(s => snapshots.set(s.id,s)); selected = configs[0]?.id || null; render(); if(!localStorage.getItem('ollamaSetupDismissed')){const status=await api.ollamaStatus();if(!status.ready)await refreshOllamaSetup(true)} })()

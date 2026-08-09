@@ -1,0 +1,20 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+const animals = new Set(['allay','armadillo','axolotl','bat','bee','camel','cat','chicken','cod','cow','dolphin','donkey','fox','frog','glow_squid','goat','horse','llama','mooshroom','mule','ocelot','panda','parrot','pig','polar_bear','pufferfish','rabbit','salmon','sheep','sniffer','snow_golem','squid','strider','tadpole','tropical_fish','turtle','villager','wandering_trader','wolf'])
+const emptyData = () => ({ totalPlayMs:0, distanceMeters:0, playersEncountered:{}, botsEncountered:{}, animalsKilled:0, animalKills:{}, materialsCollected:0, collectedByType:{} })
+
+export class LifetimeStats {
+  constructor(file, knownBots = () => []) { this.file=file;this.knownBots=knownBots;this.stats=emptyData();this.lastPosition=null;this.lastDimension=null;this.lastInventory=null;this.lastAttack=null;this.lastSampleAt=null;this.samplesSinceSave=0 }
+  async load(){try{const value=JSON.parse(await fs.readFile(this.file,'utf8'));this.stats={...emptyData(),...value,playersEncountered:value.playersEncountered||{},botsEncountered:value.botsEncountered||{},animalKills:value.animalKills||{},collectedByType:value.collectedByType||{}}}catch{}}
+  snapshot(){return{totalPlayMs:Math.round(this.stats.totalPlayMs||0),totalPlaySeconds:Math.floor((this.stats.totalPlayMs||0)/1000),distanceMeters:Math.round(this.stats.distanceMeters*10)/10,distanceKm:Math.round(this.stats.distanceMeters)/1000,playersEncountered:Object.keys(this.stats.playersEncountered).length,botsEncountered:Object.keys(this.stats.botsEncountered).length,animalsKilled:this.stats.animalsKilled,materialsCollected:this.stats.materialsCollected,topMaterials:Object.entries(this.stats.collectedByType).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,count])=>({name,count})),animalKills:{...this.stats.animalKills}}}
+  async save(){await fs.mkdir(path.dirname(this.file),{recursive:true});await fs.writeFile(this.file,JSON.stringify(this.stats,null,2));this.samplesSinceSave=0}
+  resetSession(){this.lastPosition=null;this.lastDimension=null;this.lastInventory=null;this.lastAttack=null;this.lastSampleAt=null}
+  async sample(bot){if(!bot?.entity)return;const sampleAt=Date.now();if(this.lastSampleAt){const elapsed=sampleAt-this.lastSampleAt;if(elapsed>0&&elapsed<=10000)this.stats.totalPlayMs=(this.stats.totalPlayMs||0)+elapsed}this.lastSampleAt=sampleAt;const now=new Date(sampleAt).toISOString(),p=bot.entity.position,dimension=String(bot.game?.dimension||'');if(this.lastPosition&&this.lastDimension===dimension){const distance=p.distanceTo(this.lastPosition);if(Number.isFinite(distance)&&distance<=32)this.stats.distanceMeters+=distance}this.lastPosition=p.clone?p.clone():{x:p.x,y:p.y,z:p.z};this.lastDimension=dimension
+    const known=new Set(this.knownBots().map(x=>String(x).toLowerCase()));for(const [name,player] of Object.entries(bot.players||{})){if(!name||name===bot.username||!player?.entity)continue;const bucket=known.has(name.toLowerCase())?this.stats.botsEncountered:this.stats.playersEncountered;bucket[name] ||= {firstSeen:now,lastSeen:now};bucket[name].lastSeen=now}
+    const counts=new Map();for(const item of bot.inventory?.items?.()||[])counts.set(item.name,(counts.get(item.name)||0)+(item.count||0));const inventory=Object.fromEntries(counts);if(this.lastInventory){for(const [name,count] of Object.entries(inventory)){const gained=count-(this.lastInventory[name]||0);if(gained>0){this.stats.materialsCollected+=gained;this.stats.collectedByType[name]=(this.stats.collectedByType[name]||0)+gained}}}this.lastInventory=inventory
+    if(++this.samplesSinceSave>=5)await this.save()
+  }
+  noteAttack(entity){if(entity?.id==null)return;this.lastAttack={id:entity.id,name:String(entity.name||entity.displayName||'unknown').toLowerCase(),at:Date.now()}}
+  async noteDeath(entity){if(!this.lastAttack||entity?.id!==this.lastAttack.id||Date.now()-this.lastAttack.at>30000)return false;const name=this.lastAttack.name;this.lastAttack=null;if(!animals.has(name))return false;this.stats.animalsKilled++;this.stats.animalKills[name]=(this.stats.animalKills[name]||0)+1;await this.save();return true}
+}
