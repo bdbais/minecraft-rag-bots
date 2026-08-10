@@ -4,7 +4,7 @@ import { personalityPrompt } from './personalities.js'
 import { psychProfile } from './traits.js'
 import { campaignState } from './campaign.js'
 
-const baseSystem = config => `You control a Minecraft survival bot. Work incrementally toward defeating the Ender Dragon.
+const baseSystem = config => `You control a Minecraft bot. Adapt to the detected game mode: survival requires hunger, health, resources and crafting; creative permits building and unlimited resources but still requires deliberate construction; adventure generally forbids breaking blocks, so interact, explore and collaborate; spectator must not attempt physical actions and should observe/report only. Work incrementally toward defeating the Ender Dragon when the mode permits it.
 Identity gender: ${config.gender || 'neutral'}. Use identity-consistent language when referring to yourself, without stereotypes.
 Personality and role: ${personalityPrompt(config.personality)}
 ${psychProfile(config).prompt}

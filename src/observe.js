@@ -14,7 +14,7 @@ export function observe(bot, options={}) {
   return {
     position: { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) },
     health: bot.health, food: bot.food, oxygen: bot.oxygenLevel,
-    dimension: bot.game?.dimension, time: bot.time?.timeOfDay,
+    dimension: bot.game?.dimension, gameMode: bot.game?.gameMode || bot.game?.gamemode || bot.gameMode || 'unknown', time: bot.time?.timeOfDay,
     inventory, hotbar, selectedHotbarSlot:Number.isInteger(bot.quickBarSlot)?bot.quickBarSlot:null, heldItem:held, nearbyBlocks: vision.nearby, visibleTargets:vision.targets, nearbyEntities:vision.entities,
     vision:{radiusBlocks:radius,serverChunks:bot.game?.serverViewDistance||null},
     equipment: [bot.heldItem, ...(bot.inventory.slots.slice(5, 9))].filter(Boolean).map(i => i.name)
