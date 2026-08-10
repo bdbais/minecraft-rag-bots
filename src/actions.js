@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -108,6 +108,11 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       for(const [dx,dz] of dirs){const wall=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)),head=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz)),beyond=bot.blockAt(new Vec3(p.x+dx*2,p.y,p.z+dz*2)),beyondHead=bot.blockAt(new Vec3(p.x+dx*2,p.y+1,p.z+dz*2));if(!wall||wall.boundingBox!=='block'||!head||head.boundingBox!=='block'||!beyond||!beyondHead||!/^(air|cave_air|void_air)$/.test(beyond.name)||!/^(air|cave_air|void_air)$/.test(beyondHead.name)||/(lava|water)/.test(`${wall.name} ${head.name} ${beyond.name} ${beyondHead.name}`))continue;safe.push([dx,dz,wall,head])}
       if(!safe.length)throw new Error('nessun tunnel di fuga verificato: richiedere aiuto')
       const [dx,dz,wall,head]=safe[0];await bot.dig(wall);await bot.dig(head);await bot.pathfinder.goto(new goals.GoalNear(p.x+dx*2,p.y,p.z+dz*2,1));return `passaggio di fuga scavato verso ${p.x+dx*2},${p.y},${p.z+dz*2}`
+    }
+    case 'vertical_escape': {
+      bot.pathfinder?.setGoal(null);bot.clearControlStates?.();const maxSteps=Math.max(1,Math.min(24,Number(a.maxSteps)||12)),support=(bot.inventory?.items?.()||[]).find(i=>/dirt|cobblestone|stone|netherrack|deepslate|sand|gravel|planks/.test(i.name)&&i.count>0);if(!support)throw new Error('nessun blocco comune per la colonna di fuga');await bot.equip(support,'hand');let climbed=0,dug=0;
+      for(let step=0;step<maxSteps;step++){const p=bot.entity.position.floored(),below=bot.blockAt(new Vec3(p.x,p.y-1,p.z)),feet=bot.blockAt(p),head=bot.blockAt(new Vec3(p.x,p.y+1,p.z));if(/lava|water/.test(`${below?.name} ${feet?.name} ${head?.name}`))throw new Error('acqua o lava rilevata durante la fuga verticale');if(head?.boundingBox==='block'){await bot.dig(head);dug++;const nextHead=bot.blockAt(new Vec3(p.x,p.y+2,p.z));if(nextHead?.boundingBox==='block'){await bot.dig(nextHead);dug++}}else if(below?.boundingBox!=='block'){const anchor=bot.blockAt(new Vec3(p.x,p.y-2,p.z));if(!anchor||anchor.boundingBox!=='block')throw new Error('nessun punto di appoggio per la colonna');await bot.placeBlock(anchor,new Vec3(0,1,0));}bot.setControlState?.('jump',true);await sleep(650);bot.setControlState?.('jump',false);if(bot.entity.position.y>p.y)climbed++;if((bot.inventory?.items?.().find(i=>i.name===support.name)?.count||0)<=0)break}
+      bot.clearControlStates?.();if(!climbed&&!dug)throw new Error('fuga verticale senza progresso');return `fuga verticale: ${climbed} salti, ${dug} blocchi scavati`
     }
     case 'move_to': {
       const x = Number(a.x), y = Number(a.y), z = Number(a.z)
