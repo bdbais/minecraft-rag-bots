@@ -56,6 +56,12 @@ export class BotManager extends EventEmitter {
     const entry = { config: { ...config, id }, connection: 'connecting', logs: [], pendingInstructions: [], startRequested:config.autoStart !== false, connectRequestedAt:Date.now(), startupHistory }
     entry.teamStore=await this.checkpointStore({...config,id})
     this.entries.set(id, entry); this.publish(id)
+    const aiClient = config.aiProvider === 'cloud'
+      ? new CloudAIClient(config.cloudBaseUrl, config.cloudModel, config.cloudEmbedModel, config.cloudApiKey, this.scheduler)
+      : new OllamaClient(config.ollamaUrl, config.model, config.embedModel, this.scheduler,{fallbackModel:config.model==='minecraft-agent'?'minecraft-agent-lite':'',onFallback:({previous,current})=>{entry.runtimeModel=current;this.log(id,'error',`Timeout AI ripetuti: passaggio automatico da ${previous} a ${current}`);this.publish(id)}})
+    entry.ollama=aiClient;entry.runtimeModel=config.aiProvider==='cloud'?config.cloudModel:config.model
+    entry.connection='preparing-ai';this.publish(id)
+    try { await aiClient.decide('Warm-up only. Return JSON.', 'Return the JSON object {"ready":true}.', {type:'object',properties:{ready:{type:'boolean'}},required:['ready'],additionalProperties:false});entry.aiReady=true } catch (error) { entry.connection='error';entry.bootstrapError=`AI non pronta: ${error.message}`;this.log(id,'error',entry.bootstrapError);this.publish(id);throw error }
     const bot = mineflayer.createBot({...minecraftConnectionOptions(config, this.dataDir, code => this.emit('microsoft-code', code)),viewDistance:'far'})
     entry.bot = bot; bot.loadPlugin(pathfinder); bot.loadPlugin(collectBlock.plugin)
     bot.once('spawn', async () => {
@@ -69,9 +75,7 @@ export class BotManager extends EventEmitter {
         bot.pathfinder?.setMovements(safeMovements)
         entry.bootstrapSafe=true
         entry.connection = 'initializing'; this.publish(id)
-        const ollama = config.aiProvider === 'cloud'
-          ? new CloudAIClient(config.cloudBaseUrl, config.cloudModel, config.cloudEmbedModel, config.cloudApiKey, this.scheduler)
-          : new OllamaClient(config.ollamaUrl, config.model, config.embedModel, this.scheduler,{fallbackModel:config.model==='minecraft-agent'?'minecraft-agent-lite':'',onFallback:({previous,current})=>{entry.runtimeModel=current;this.log(id,'error',`Timeout AI ripetuti: passaggio automatico da ${previous} a ${current}`);this.publish(id)}})
+        const ollama = entry.ollama
         entry.ollama = ollama
         entry.runtimeModel=config.aiProvider==='cloud'?config.cloudModel:config.model
         const legacyLocal = config.aiProvider !== 'cloud' && (config.embedModel || 'nomic-embed-text') === 'nomic-embed-text'
