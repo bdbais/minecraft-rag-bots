@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -99,9 +99,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         if(floor?.boundingBox==='block'&&feet&&head&&/^(air|cave_air|void_air)$/.test(feet.name)&&/^(air|cave_air|void_air)$/.test(head.name)&&!/(lava|water)/.test(floor.name))candidates.push({x:p.x+dx,y:p.y,z:p.z+dz,d:Math.abs(dx)+Math.abs(dz)})
       }
       candidates.sort((a,b)=>b.d-a.d)
-      if(!candidates.length)throw new Error('nessuna casella sicura trovata vicino al pericolo')
+      if(!candidates.length)return execute(bot,{action:'dig_escape',goal:'aprire un passaggio di fuga verificato',args:{}},{allowPvp,onStorageSeen,onAttackTarget,onShareCheckpoint})
       const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry?.blocksByName?.water?.id,bot.registry?.blocksByName?.lava?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)
       await bot.pathfinder.goto(new goals.GoalNear(candidates[0].x,candidates[0].y,candidates[0].z,1)); return `pericolo evitato verso ${candidates[0].x},${candidates[0].y},${candidates[0].z}`
+    }
+    case 'dig_escape': {
+      bot.pathfinder?.setGoal(null);bot.clearControlStates?.();const p=bot.entity.position.floored(),dirs=[[1,0],[-1,0],[0,1],[0,-1]],safe=[]
+      for(const [dx,dz] of dirs){const wall=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)),head=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz)),beyond=bot.blockAt(new Vec3(p.x+dx*2,p.y,p.z+dz*2)),beyondHead=bot.blockAt(new Vec3(p.x+dx*2,p.y+1,p.z+dz*2));if(!wall||wall.boundingBox!=='block'||!head||head.boundingBox!=='block'||!beyond||!beyondHead||!/^(air|cave_air|void_air)$/.test(beyond.name)||!/^(air|cave_air|void_air)$/.test(beyondHead.name)||/(lava|water)/.test(`${wall.name} ${head.name} ${beyond.name} ${beyondHead.name}`))continue;safe.push([dx,dz,wall,head])}
+      if(!safe.length)throw new Error('nessun tunnel di fuga verificato: richiedere aiuto')
+      const [dx,dz,wall,head]=safe[0];await bot.dig(wall);await bot.dig(head);await bot.pathfinder.goto(new goals.GoalNear(p.x+dx*2,p.y,p.z+dz*2,1));return `passaggio di fuga scavato verso ${p.x+dx*2},${p.y},${p.z+dz*2}`
     }
     case 'move_to': {
       const x = Number(a.x), y = Number(a.y), z = Number(a.z)
