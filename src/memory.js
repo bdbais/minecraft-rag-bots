@@ -11,7 +11,14 @@ export function cosine(a, b) {
 export class MemoryStore {
   constructor(file, ollama) { this.file = file; this.ollama = ollama; this.items = [] }
   async load() {
-    try { this.items = JSON.parse(await fs.readFile(this.file, 'utf8')) } catch (e) { if (e.code !== 'ENOENT') throw e }
+    try { this.items = JSON.parse(await fs.readFile(this.file, 'utf8')); if (!Array.isArray(this.items)) this.items=[] }
+    catch (e) {
+      if (e.code === 'ENOENT') return
+      // Un file RAG troncato non deve impedire l’avvio del bot: conserva una
+      // copia diagnostica e riparte con memoria vuota, pronta a reimparare.
+      try { await fs.copyFile(this.file, `${this.file}.corrupt-${Date.now()}.bak`) } catch {}
+      this.items=[]
+    }
   }
   async save() { await fs.mkdir(path.dirname(this.file), { recursive: true }); await fs.writeFile(this.file, JSON.stringify(this.items, null, 2)) }
   async add(text, metadata = {}) {
