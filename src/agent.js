@@ -80,7 +80,9 @@ export class Agent {
     if (generation !== this.generation) throw new Error('INTERRUPTED')
     if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop'].includes(decision.action)){const blocked=decision.action;decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}
     this.steps++; this.emit('decision', { decision, state, manual })
-    const before = JSON.stringify(state)
+    // Il learner deve ricevere lo snapshot strutturato, non la stringa usata
+    // soltanto per il diario: stateDelta altrimenti non vede inventario e posizione.
+    const before = state
     let result, success = true
     this.phase = 'acting'; this.emit('status', { running: true })
     try { const started=Date.now(),operation=execute(this.bot,decision,this.config),passive=['wait','chat','stop','share_checkpoint','craft','equip','eat','unstuck','collect_wood','collect_block','collect_drops'].includes(decision.action);result = passive?await this.withTimeout(operation,Number(this.config.actionTimeoutMs)||45000,`Azione ${decision.action}`):await this.withProgressWatchdog(operation,Number(this.config.actionTimeoutMs)||45000,`Azione ${decision.action}`,Number(this.config.stallTimeoutMs)||15000);actionMs=Date.now()-started } catch (error) { actionMs=Date.now()-stepStarted-planningMs;await this.cancelAction(); success = false; result = error.message }
