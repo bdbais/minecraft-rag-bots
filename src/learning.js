@@ -52,9 +52,8 @@ export class LearningEngine {
     }
     if (reflection.achieved) stat.successes++; else stat.failures++
     stat.lastResult = String(result); if (reflection.reusable && reflection.achieved) stat.bestLesson = reflection.lesson
-    this.totalLessons++; await this.save()
     const text = `LEARNED EPISODE. Human instruction: ${manual || 'none'}. Goal: ${decision.goal}. Action: ${key} ${JSON.stringify(decision.args)}. Observed change: ${JSON.stringify(delta)}. Outcome: ${reflection.achieved ? 'SUCCESS' : 'FAILURE'}. Lesson: ${reflection.lesson}. Next strategy: ${reflection.nextStrategy}. Confidence: ${reflection.confidence}.`
-    await this.memory.add(text, { type: 'learned_episode', success: reflection.achieved, action: key, confidence: reflection.confidence, manualInstruction: manual || null })
+    this.totalLessons++; if(reflection.reusable && Number(reflection.confidence)>=0.7) await this.memory.add(text, { type: 'learned_episode', success: reflection.achieved, action: key, confidence: reflection.confidence, manualInstruction: manual || null }); await this.save()
     return { ...reflection, delta }
   }
 }
