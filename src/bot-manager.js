@@ -60,6 +60,14 @@ export class BotManager extends EventEmitter {
     entry.bot = bot; bot.loadPlugin(pathfinder); bot.loadPlugin(collectBlock.plugin)
     bot.once('spawn', async () => {
       try {
+        // Finestra di bootstrap: il client è già nel mondo ma memoria e AI non
+        // sono ancora pronte. Blocchiamo ogni movimento residuo e vietiamo al
+        // pathfinder di scavare/attraversare acqua o lava finché l'agente non parte.
+        bot.clearControlStates?.(); bot.pathfinder?.setGoal(null)
+        const safeMovements=new Movements(bot); safeMovements.canDig=false
+        safeMovements.blocksToAvoid=new Set([bot.registry?.blocksByName?.water?.id,bot.registry?.blocksByName?.lava?.id].filter(Number.isInteger))
+        bot.pathfinder?.setMovements(safeMovements)
+        entry.bootstrapSafe=true
         entry.connection = 'initializing'; this.publish(id)
         const ollama = config.aiProvider === 'cloud'
           ? new CloudAIClient(config.cloudBaseUrl, config.cloudModel, config.cloudEmbedModel, config.cloudApiKey, this.scheduler)
