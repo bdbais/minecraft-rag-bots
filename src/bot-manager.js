@@ -22,7 +22,7 @@ import { minecraftConnectionOptions } from './minecraft-auth.js'
 import { LifetimeStats } from './lifetime-stats.js'
 import { TeamCheckpoints, serverCheckpointFile } from './team-checkpoints.js'
 
-const { pathfinder } = pathfinderPackage
+const { pathfinder, Movements } = pathfinderPackage
 export function startupSummary(history=[],requestedAt=null,ready=false){const measuredAt=Date.now(),recent=history.filter(x=>Number.isFinite(x.durationMs)&&x.durationMs>=0).slice(-10),durations=recent.map(x=>x.durationMs),averageMs=durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):null;return{samples:durations.length,averageMs,lastMs:durations.at(-1)??null,minMs:durations.length?Math.min(...durations):null,maxMs:durations.length?Math.max(...durations):null,currentWaitMs:requestedAt&&!ready?Math.max(0,measuredAt-requestedAt):null,measuredAt,recent}}
 export class BotManager extends EventEmitter {
   constructor(dataDir) { super(); this.dataDir = dataDir; this.entries = new Map(); this.scheduler = new InferenceScheduler(1); this.publishTimers = new Map();this.teamStores=new Map() }
