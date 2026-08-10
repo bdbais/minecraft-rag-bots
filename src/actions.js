@@ -112,8 +112,11 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'move_to': {
       const x = Number(a.x), y = Number(a.y), z = Number(a.z)
       if (![x, y, z].every(Number.isFinite)) throw new Error('move_to needs numeric x, y, z')
-      await bot.pathfinder.goto(new goals.GoalNear(x, y, z, Math.max(1, Number(a.range) || 2)))
-      return `moved near ${x},${y},${z}`
+      const range=Math.max(1, Number(a.range) || 2)
+      await bot.pathfinder.goto(new goals.GoalNear(x, y, z, range))
+      const distance=bot.entity?.position?.distanceTo(new Vec3(x,y,z))
+      if(!Number.isFinite(distance) || distance>range+0.75) throw new Error(`percorso incompleto: distanza residua ${distance?.toFixed?.(1) ?? 'sconosciuta'} blocchi`)
+      return `raggiunta posizione ${x},${y},${z} (distanza ${distance.toFixed(1)})`
     }
     case 'explore': {
       const radius=Math.max(8,Math.min(Number(a.radius)||18,40)),angle=Math.random()*Math.PI*2,p=bot.entity.position
