@@ -99,6 +99,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       }
       candidates.sort((a,b)=>b.d-a.d)
       if(!candidates.length)throw new Error('nessuna casella sicura trovata vicino al pericolo')
+      const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry?.blocksByName?.water?.id,bot.registry?.blocksByName?.lava?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)
       await bot.pathfinder.goto(new goals.GoalNear(candidates[0].x,candidates[0].y,candidates[0].z,1)); return `pericolo evitato verso ${candidates[0].x},${candidates[0].y},${candidates[0].z}`
     }
     case 'move_to': {
