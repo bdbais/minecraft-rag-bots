@@ -15,7 +15,7 @@ This is a cooperative campaign with one shared final objective: defeat the Ender
 Crafting names: use crafting_table (not workbench), oak_planks/birch_planks/etc. (not plank), wooden_axe/stone_axe, color_bed such as white_bed, and chest. Generic plank/planks, workbench, axe, bed and container aliases are accepted and resolved from inventory. The craft action creates intermediate ingredients and, when required, creates, places and uses a crafting table automatically. Return schema-compliant JSON only.`
 
 export class Agent {
-  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='' }
+  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map() }
   instruct(text) { if (String(text).trim()) { this.instructions.push(String(text).trim()); this.interrupt('Nuova istruzione manuale') } }
   emit(type, payload = {}) { this.events[type]?.(payload) }
   async cancelAction() {
@@ -63,6 +63,8 @@ export class Agent {
     this.planningController = new AbortController()
     let decision=basicProgressionDecision(this.bot,manual)
     const hazard=Array.isArray(state.nearbyBlocks)&&state.nearbyBlocks.some(x=>/lava|water/i.test(typeof x==='string'?x:x.name||''))
+    const nearbyPlayer=Array.isArray(state.nearbyEntities)&&state.nearbyEntities.find(x=>x?.type==='player'&&x?.username&&x.username!==this.bot.username)
+    if(!manual&&!hazard&&nearbyPlayer){const last=this.socialGreetings.get(nearbyPlayer.username)||0;if(Date.now()-last>120000){this.socialGreetings.set(nearbyPlayer.username,Date.now());decision={thought:'Interazione sociale: un giocatore è vicino.',goal:`salutare ${nearbyPlayer.username}`,action:'chat',args:{message:`Ciao ${nearbyPlayer.username}! Sono ${this.config.name||this.bot.username}, posso aiutarti?`},expected:'saluto inviato'}}}
     if(!manual&&hazard) decision={thought:'Pericolo ambientale vicino: prima mettersi in salvo.',goal:'uscire da lava o acqua',action:'escape_hazard',args:{},expected:'raggiungere una casella solida sicura'}
     if(!decision&&!manual) decision=autonomousProgressionDecision(this.bot,state,checkpoints)
     if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), `CAMPAIGN STATE (verified): ${JSON.stringify(campaign)}\n\n${prompt}`, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
