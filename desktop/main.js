@@ -10,6 +10,13 @@ import { BotManager } from '../src/bot-manager.js'
 import { checkForUpdates } from '../src/update-checker.js'
 import { createExportPackage } from '../src/export-package.js'
 import { queryOllama } from '../src/ollama-setup.js'
+
+// Alcuni driver Intel/VM terminano Electron prima del caricamento della UI.
+// Il dashboard non richiede accelerazione 3D: usa il renderer software come fallback.
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('disable-gpu-compositing')
+app.commandLine.appendSwitch('in-process-gpu')
+app.disableHardwareAcceleration()
 import { recommendLocalModel, hardwareDna } from '../src/model-recommendation.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
