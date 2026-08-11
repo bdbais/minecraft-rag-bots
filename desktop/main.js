@@ -153,12 +153,24 @@ ipcMain.handle('biography:epic-book', async (_, id) => {
   const book = await manager.generateEpicBook(id, progress => send('book:progress', progress))
   await fs.writeFile(result.filePath, book.markdown); return true
 })
-ipcMain.handle('item:icons', (_, { names, version }) => {
+ipcMain.handle('item:icons', async (_, { names, version }) => {
   const safeNames = Array.isArray(names) ? names.slice(0, 100).filter(x => /^[a-z0-9_]+$/.test(x)) : []
   const safeVersion = /^\d+\.\d+(\.\d+)?$/.test(version || '') ? version : '1.21.4'
   let assets
   try { assets = assetCache.get(safeVersion) || minecraftAssets(safeVersion); assetCache.set(safeVersion, assets) }
   catch { assets = assetCache.get('1.21.4') || minecraftAssets('1.21.4'); assetCache.set('1.21.4', assets) }
-  return Object.fromEntries(safeNames.map(name => [name, assets.textureContent[name]?.texture || null]))
+  const result = Object.fromEntries(safeNames.map(name => [name, assets.textureContent[name]?.texture || null]))
+  // minecraft-assets può associare alcuni blocchi (chest/crafting_table) alla
+  // texture del materiale base. Per l'inventario preferiamo l'item PNG reale.
+  for (const name of safeNames) {
+    if (!/^(chest|trapped_chest|ender_chest|crafting_table|furnace|barrel)$/.test(name)) continue
+    try {
+      const root = path.dirname(require.resolve('minecraft-assets/package.json'))
+      const file = path.join(root, 'minecraft-assets', 'data', safeVersion, 'items', `${name}.png`)
+      const data = await fs.readFile(file)
+      result[name] = `data:image/png;base64,${data.toString('base64')}`
+    } catch {}
+  }
+  return result
 })
 ipcMain.handle('open:external', (_, url) => { if (/^https:\/\//.test(url)) return shell.openExternal(url) })
