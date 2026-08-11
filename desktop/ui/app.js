@@ -4,6 +4,7 @@ const iconCache = new Map()
 let mapData=null,mapZoom=6,mapCenter={x:0,z:0},mapFollow=true
 const mapPoiFilters=new Set(['team','storage','resource','danger','portal','workstation'])
 const $ = s => document.querySelector(s)
+document.querySelector('.eyebrow')?.replaceChildren('AI CONTROL CENTER')
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600) }
 async function safe(fn) { try { await fn() } catch (e) { toast(e.message || String(e)) } }
