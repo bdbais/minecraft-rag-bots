@@ -10,6 +10,7 @@ function toast(message) { const el = $('#toast'); el.textContent = message; el.c
 async function safe(fn) { try { await fn() } catch (e) { toast(e.message || String(e)) } }
 const prettyName = name => String(name).split('_').map(x => x[0]?.toUpperCase() + x.slice(1)).join(' ')
 const proceduralItemIcon = name => { const n=String(name), body=n==='crafting_table'?'<rect x="2" y="2" width="28" height="28" rx="2" fill="#9b6a3d"/><path d="M3 11h26M3 20h26M11 3v26M20 3v26" stroke="#e2b878" stroke-width="2"/>':/chest/.test(n)?'<rect x="2" y="7" width="28" height="21" rx="3" fill="#9a5b2b"/><path d="M2 12h28M16 12v16" stroke="#e8a04b" stroke-width="2"/><circle cx="16" cy="16" r="2" fill="#f4d27a"/>':null; return body?`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${body}</svg>`)}`:'' }
+const preferredItemIcon = (name, version) => /^(chest|trapped_chest|ender_chest|crafting_table|furnace|barrel)$/.test(String(name)) ? proceduralItemIcon(name) : iconCache.get(`${version}:${name}`)
 const genderMeta = gender => ({ male: { label: 'Maschio', symbol: '♂' }, female: { label: 'Femmina', symbol: '♀' }, neutral: { label: 'Neutro', symbol: '●' } }[gender] || { label: 'Neutro', symbol: '●' })
 const avatarHtml = gender => { const g = ['male','female','neutral'].includes(gender) ? gender : 'neutral'; return `<div class="botAvatar ${g}"><i></i><span>${genderMeta(g).symbol}</span></div>` }
 function formatPlayTime(onlineSince){if(!onlineSince)return'00:00:00';const seconds=Math.max(0,Math.floor((Date.now()-new Date(onlineSince).getTime())/1000)),hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`}
@@ -68,11 +69,11 @@ async function renderInventory(game, version, botId) {
     for (const name of missing) iconCache.set(`${version}:${name}`, icons[name] || '')
   }
   if (selected !== botId) return
-  const itemHtml=(item,extra='')=>{if(!item)return`<div class="item-slot empty-slot ${extra}"></div>`;const icon=iconCache.get(`${version}:${item.name}`)||proceduralItemIcon(item.name),tip=`${prettyName(item.name)}\nID: ${item.name}\nQuantità: ${item.count}${Number.isInteger(item.slot)?`\nSlot rapido: ${item.slot+1}`:''}`;return`<div class="item-slot ${extra}" data-tip="${esc(tip)}">${icon?`<img src="${icon}" alt="${esc(item.name)}">`:`<span class="item-fallback">${esc(item.name.slice(0,2).toUpperCase())}</span>`}<b>${item.count}</b></div>`}
+  const itemHtml=(item,extra='')=>{if(!item)return`<div class="item-slot empty-slot ${extra}"></div>`;const icon=preferredItemIcon(item.name,version)||proceduralItemIcon(item.name),tip=`${prettyName(item.name)}\nID: ${item.name}\nQuantità: ${item.count}${Number.isInteger(item.slot)?`\nSlot rapido: ${item.slot+1}`:''}`;return`<div class="item-slot ${extra}" data-tip="${esc(tip)}">${icon?`<img src="${icon}" alt="${esc(item.name)}">`:`<span class="item-fallback">${esc(item.name.slice(0,2).toUpperCase())}</span>`}<b>${item.count}</b></div>`}
   $('#hotbar').innerHTML=hotbar.map((item,index)=>itemHtml(item,index===game.selectedHotbarSlot?'selected-slot':'')).join('')
   $('#heldItem').innerHTML=held?`<div class="held-card">${itemHtml(held,'held-slot')}<div><b>${esc(prettyName(held.name))}</b><small>In mano · slot ${(held.slot??game.selectedHotbarSlot??0)+1} · quantità ${held.count}</small></div></div>`:'<span class="chip">mano vuota</span>'
   const slots = Object.entries(inv).map(([name, count]) => {
-    const icon = iconCache.get(`${version}:${name}`); const tip = `${prettyName(name)}\nID: ${name}\nQuantità: ${count}`
+    const icon = preferredItemIcon(name,version)||proceduralItemIcon(name); const tip = `${prettyName(name)}\nID: ${name}\nQuantità: ${count}`
     return `<div class="item-slot" data-tip="${esc(tip)}">${icon ? `<img src="${icon}" alt="${esc(name)}">` : `<span class="item-fallback">${esc(name.slice(0,2).toUpperCase())}</span>`}<b>${count}</b></div>`
   })
   while (slots.length < 27) slots.push('<div class="item-slot empty-slot"></div>')
