@@ -116,12 +116,12 @@ export class BotManager extends EventEmitter {
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
       if (/^(ciao|salve|buongiorno|buonasera|hello|hi|hey)\b/i.test(text) && !teammate) {
-        bot.chat(`Ciao ${username}! Sono ${config.name}. Sono pronto a collaborare.`)
+        bot.chat(`Ciao ${username}! Sono ${config.name}. Sto imparando: cosa stai facendo e come posso aiutarti?`)
         this.log(id, 'info', `Saluto inviato a ${username}`)
       }
       entry.biography?.add('chat', 'Voci dal mondo', `${config.name} ha letto un messaggio di ${username}: “${text}”.`, { username, addressed }).catch(()=>{})
       if (!teammate || addressed) {
-        const instruction = `Messaggio Minecraft di ${username}: ${text}`
+        const instruction = `Conversazione sociale con ${username}. Messaggio ricevuto: “${text}”. Rispondi in chat entro questa azione con una frase coerente con la tua personalità; se il messaggio contiene un obiettivo, chiariscilo e proponi una collaborazione. Ricorda questa persona e il contesto per i prossimi incontri. Non limitarti a salutare.`
         if (entry.agent) { entry.agent.instruct(instruction); if (!entry.agent.running) entry.agent.start() } else entry.pendingInstructions.push(instruction)
         this.log(id, 'prompt', `${username} dalla chat: ${text}`)
       } else this.log(id, 'info', `Compagno ${username}: ${text}`)
