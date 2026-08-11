@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('botsApi', {
   copyTechnicalLog: id => ipcRenderer.invoke('technical-log:copy', id), exportTechnicalLog: id => ipcRenderer.invoke('technical-log:export', id),
   generateEpicBook: id => ipcRenderer.invoke('biography:epic-book', id),
   itemIcons: (names, version) => ipcRenderer.invoke('item:icons', { names, version }),
+  showChangelog: () => ipcRenderer.invoke('app:changelog'),
+  onUpdateBanner: cb => ipcRenderer.on('app:update-banner', (_, x) => cb(x)),
   onUpdate: cb => ipcRenderer.on('bot:update', (_, x) => cb(x)), onRemoved: cb => ipcRenderer.on('bot:removed', (_, id) => cb(id)), onBookProgress: cb => ipcRenderer.on('book:progress', (_, x) => cb(x)), onOllamaProgress: cb => ipcRenderer.on('ollama:progress',(_,x)=>cb(x)), onOllamaOpen: cb => ipcRenderer.on('ollama:open',()=>cb())
 })

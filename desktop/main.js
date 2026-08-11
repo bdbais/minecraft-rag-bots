@@ -61,6 +61,12 @@ async function showAbout() {
   const result = await dialog.showMessageBox(win, { type: 'info', title: 'About Minecraft RAG Bots', message: 'Minecraft RAG Bots', detail: `Versione ${app.getVersion()}\nAutore: ${AUTHOR}\n\nDashboard AI locale e cloud per agenti Minecraft.\n${GITHUB_URL}`, buttons: ['OK', 'Apri GitHub'], defaultId: 0, cancelId: 0 })
   if (result.response === 1) await shell.openExternal(GITHUB_URL)
 }
+async function showChangelog() {
+  const version=app.getVersion(), candidates=[path.join(process.cwd(),'docs',`RELEASE-NOTES-${version}.md`),path.join(here,'..','docs',`RELEASE-NOTES-${version}.md`),path.join(process.resourcesPath,'docs',`RELEASE-NOTES-${version}.md`),path.join(process.cwd(),'docs','RELEASE-NOTES-0.19.28.md')]
+  let text=`Versione ${version}\n\nConsulta la release GitHub per il changelog completo.`
+  for(const file of candidates){try{text=await fs.readFile(file,'utf8');break}catch{}}
+  await dialog.showMessageBox(win,{type:'info',title:`Changelog Minecraft RAG Bots ${version}`,message:`Novità della versione ${version}`,detail:text,buttons:['OK','Apri release GitHub'],defaultId:0,cancelId:0}).then(r=>{if(r.response===1)shell.openExternal(`${GITHUB_URL}/releases/tag/v${version}`)})
+}
 async function runUpdateCheck() {
   try {
     const update = await checkForUpdates(app.getVersion(), GITHUB_REPO)
@@ -95,7 +101,7 @@ async function exportConfiguration(single) {
 function installApplicationMenu() {
   const template = [
     { label:'File', submenu:[{ label:'Esporta bot selezionato…', accelerator:'CmdOrCtrl+E', click:()=>exportConfiguration(true) }, { label:'Esporta configurazione completa…', click:()=>exportConfiguration(false) }, { type:'separator' }, { label:'Esci', accelerator:process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4', click:()=>app.quit() }] },
-    { label:'Help', submenu:[{ label:'Configurazione Ollama…', click:()=>send('ollama:open') }, { type:'separator' }, { label:'About Minecraft RAG Bots', click:showAbout }, { type:'separator' }, { label:'Sito GitHub', click:()=>shell.openExternal(GITHUB_URL) }, { label:'Controlla aggiornamenti…', click:runUpdateCheck }] }
+    { label:'Help', submenu:[{ label:'Configurazione Ollama…', click:()=>send('ollama:open') }, { type:'separator' }, { label:'About Minecraft RAG Bots', click:showAbout }, { label:'Changelog…', click:showChangelog }, { type:'separator' }, { label:'Sito GitHub', click:()=>shell.openExternal(GITHUB_URL) }, { label:'Controlla aggiornamenti…', click:runUpdateCheck }] }
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
@@ -116,6 +122,7 @@ app.whenReady().then(async () => {
   win = new BrowserWindow({ width: 1440, height: 900, minWidth: 1050, minHeight: 680, backgroundColor: '#0b1016', title: 'Minecraft RAG Bots', webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false } })
   installApplicationMenu()
   await win.loadFile(path.join(here, 'ui', 'index.html'))
+  const marker=path.join(app.getPath('userData'),'last-seen-version.txt'),previous=await fs.readFile(marker,'utf8').catch(()=>''),current=app.getVersion();await fs.writeFile(marker,current);if(previous&&previous.trim()!==current)send('app:update-banner',{version:current})
 })
 app.on('window-all-closed', () => { manager?.closeAll(); if (process.platform !== 'darwin') app.quit() })
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) app.relaunch() })
@@ -125,6 +132,7 @@ ipcMain.handle('ollama:status', () => ollamaStatus())
 ipcMain.handle('ollama:start', () => startOllama())
 ipcMain.handle('ollama:install', () => installOllama())
 ipcMain.handle('ollama:setup-models', () => setupOllamaModels())
+ipcMain.handle('app:changelog', () => showChangelog())
 ipcMain.on('ui:selected-bot', (_, id) => { selectedBotId = typeof id === 'string' ? id : null })
 ipcMain.handle('config:save', (_, items) => saveConfigs(items))
 ipcMain.handle('bot:list', () => manager.snapshots())

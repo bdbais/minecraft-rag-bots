@@ -191,6 +191,7 @@ function initDashboardPanels(){
     panel.addEventListener('dragover',e=>{e.preventDefault();const dragging=grid.querySelector('.dragging');if(dragging&&dragging!==panel){const box=panel.getBoundingClientRect();grid.insertBefore(dragging,e.clientY<box.top+box.height/2?panel:panel.nextSibling)}})
   })
 }
+api.onUpdateBanner?.(info=>{const banner=document.createElement('button');banner.className='updateBanner';banner.textContent=`Aggiornamento installato · v${info.version} · leggi il changelog`;banner.title='Apri il changelog della versione installata';banner.onclick=()=>api.showChangelog();document.body.prepend(banner)})
 initDashboardPanels()
 ;(async () => { configs = await api.listConfigs(); (await api.listBots()).forEach(s => snapshots.set(s.id,s)); selected = configs[0]?.id || null; render(); if(!localStorage.getItem('ollamaSetupDismissed')){const status=await api.ollamaStatus();if(!status.ready)await refreshOllamaSetup(true)} })()
 setTimeout(()=>$('#mapCanvas')?.addEventListener('wheel',e=>{e.preventDefault();mapZoom=Math.max(1.5,Math.min(24,mapZoom*(e.deltaY<0?1.2:1/1.2)));drawWorldMap()},{passive:false}),0)

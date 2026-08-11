@@ -1,6 +1,6 @@
 {
   "name": "ollama-minecraft-rag-agent",
-  "version": "0.19.28",
+  "version": "0.19.29",
   "description": "Desktop dashboard for multiple Ollama-powered Minecraft RAG bots",
   "author": "bd_ba",
   "main": "desktop/main.js",
@@ -44,7 +44,8 @@
       "desktop/**/*",
       "src/**/*",
       "package.json",
-      "Modelfile"
+      "Modelfile",
+      "docs/**/*"
     ],
     "extraMetadata": {
       "main": "desktop/main.js"
