@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import { Agent } from '../src/agent.js'
 
 test('manual instructions are queued in order', () => {
-  const agent = new Agent({ pathfinder: { setGoal() {} } }, {}, {}, {})
+  const memory = { search: async () => [] }
+  const agent = new Agent({ pathfinder: { setGoal() {} } }, {}, memory, {})
+  assert.equal(agent.memory, memory)
   agent.instruct('eat first'); agent.instruct('go home')
   assert.deepEqual(agent.instructions, ['eat first', 'go home'])
   assert.equal(agent.generation, 2)
