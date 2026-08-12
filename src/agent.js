@@ -114,7 +114,7 @@ export class Agent {
       await this.memory.add(experience, { type: 'experience', success, action: decision.action, manualInstruction: manual || null })
     }
     const effectiveSuccess = learned ? learned.achieved : success
-    if(effectiveSuccess){if(decision.action==='unstuck')this.actionFailures={};else this.actionFailures[decision.action]=0}else this.actionFailures[decision.action]=(this.actionFailures[decision.action]||0)+1
+    if(effectiveSuccess){if(decision.action==='unstuck'){const recovered=decision.recoveryFor; if(recovered)this.actionFailures[recovered]=Math.max(2,this.actionFailures[recovered]||2); else this.actionFailures={}}else this.actionFailures[decision.action]=0}else this.actionFailures[decision.action]=(this.actionFailures[decision.action]||0)+1
     if (effectiveSuccess) this.successes++; else this.failures++
     this.emit('result', { success: effectiveSuccess, result, decision, state: after, learned, timing:{totalMs:Date.now()-stepStarted,planningMs,actionMs} })
     if (decision.action === 'stop') this.stop()
