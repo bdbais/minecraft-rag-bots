@@ -424,5 +424,9 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&!items.some(x=>/_axe$/.test(x.name)))return{thought:'Progressione automatica: ascia mancante.',goal:'creare un ascia',action:'craft',args:{name:'axe',count:1},expected:'ascia nell inventario'}
   if(table&&!has('chest'))return{thought:'Progressione automatica: contenitore mancante.',goal:'creare una chest',action:'craft',args:{name:'chest',count:1},expected:'chest nell inventario'}
   if(!sheltered&&items.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)))return{thought:'Progressione automatica: nessun riparo registrato.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'riparo costruito'}
-  return null
+  // Once immediate survival needs are satisfied, keep the world-learning
+  // loop alive even when the language model returns no plan. Exploration is
+  // bounded and becomes a reusable episode through the normal learner.
+  const radius=checkpoints.length<3?24:36
+  return{thought:'Nessuna urgenza: avvio una nuova sfida di esplorazione controllata.',goal:'esplorare una nuova area e cercare risorse o punti di interesse',action:'explore',args:{radius},expected:'posizione o conoscenza del mondo aggiornata'}
 }
