@@ -265,7 +265,9 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       return `riparo costruito: ${placed} blocchi posizionati`
     }
     case 'attack_nearest': {
-      const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < 16 && (e.type === 'mob' || (allowPvp && e.type === 'player' && e.username !== bot.username)))
+      const hostile = /zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
+      const requested = String(a.target || a.name || '').toLowerCase()
+      const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < 16 && ((e.type === 'mob' && (requested ? String(e.name || '').toLowerCase() === requested : hostile.test(e.name || ''))) || (allowPvp && e.type === 'player' && e.username !== bot.username)))
       if (!target) throw new Error('no allowed nearby target')
       const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2))
@@ -277,6 +279,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
 export function autonomousProgressionDecision(bot, observation = {}, checkpoints = []) {
   const items=bot.inventory?.items?.()||[], has=name=>items.some(x=>x.name===name&&x.count>0), food=items.find(x=>/bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon/.test(x.name)), logs=items.reduce((n,x)=>n+(/(_log|_wood|_stem|_hyphae)$/.test(x.name)?x.count:0),0), planks=items.reduce((n,x)=>n+(/_planks$/.test(x.name)?x.count:0),0), table=has('crafting_table')||!!bot.findBlock?.({matching:bot.registry?.blocksByName?.crafting_table?.id,maxDistance:6}), sheltered=checkpoints.some(x=>x.type==='base'||/riparo|base|shelter/i.test(x.label||''))
   const nearbyEntities=Array.isArray(observation.nearbyEntities)?observation.nearbyEntities:[], nearbyBlocks=Array.isArray(observation.nearbyBlocks)?observation.nearbyBlocks:[]
+  const hostileNames=/zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
+  const hostile=nearbyEntities.find(x=>x?.type==='mob'&&hostileNames.test(String(x.name||'')))
   const mode=String(observation.gameMode||bot.game?.gameMode||'survival').toLowerCase()
   if(mode==='spectator')return{thought:'Modalità spettatore: osservazione senza azioni fisiche.',goal:'osservare e riferire la zona',action:'wait',args:{ms:3000},expected:'nessuna azione fisica'}
   if(mode==='creative'){
@@ -291,8 +295,11 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(items.length>=20&&nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Inventario quasi pieno: depositare i materiali non essenziali.',goal:'organizzare le risorse nella chest',action:'store_items',args:{maxDistance:32},expected:'materiali depositati e inventario ottimizzato'}
   if(nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Memoria automatica: ispezionare il contenitore vicino.',goal:'leggere il contenuto della chest',action:'inspect_storage',args:{},expected:'contenuto registrato nella memoria'}
   if(Number(observation.health)>0&&Number(observation.health)<6&&!food)return{thought:'Emergenza: salute critica senza cibo.',goal:'raggiungere una posizione sicura e chiedere aiuto',action:'escape_hazard',args:{},expected:'uscire dal pericolo senza costruire'}
+  if(hostile&&Number(observation.health)>0&&Number(observation.health)<8)return{thought:'Pericolo: mob ostile vicino e salute bassa.',goal:'allontanarsi dal mob ostile',action:'escape_hazard',args:{},expected:'distanza di sicurezza'}
   if(Number(observation.food)<8&&food)return{thought:'Priorità survival: fame bassa.',goal:'mangiare per sopravvivere',action:'eat',args:{name:food.name},expected:'fame sopra la soglia'}
   if(Number(observation.health)>0&&Number(observation.health)<8&&food)return{thought:'Priorità survival: salute critica.',goal:'mangiare e cercare sicurezza',action:'eat',args:{name:food.name},expected:'salute stabilizzata'}
+  if(hostile&&!items.some(x=>/_sword$|_axe$/.test(x.name))&&table)return{thought:'Difesa: un mob ostile è vicino e manca un’arma.',goal:'creare un’arma per difendersi',action:'craft',args:{name:'sword',count:1},expected:'arma nell inventario'}
+  if(hostile&&items.some(x=>/_sword$|_axe$/.test(x.name)))return{thought:'Difesa: affrontare il mob ostile prima che raggiunga il bot.',goal:`difendersi da ${hostile.name}`,action:'attack_nearest',args:{target:hostile.name},expected:'mob ostile sconfitto o distanza sicura'}
   if(logs<2&&planks<4)return{thought:'Progressione automatica: servono materiali primari.',goal:'raccogliere legno',action:'collect_wood',args:{count:4},expected:'legno nell inventario'}
   if(!table&& (logs>0||planks>=4))return{thought:'Progressione automatica: banco da lavoro mancante.',goal:'creare e posizionare un banco',action:'craft',args:{name:'crafting_table',count:1},expected:'banco disponibile'}
   if(table&&!items.some(x=>/_pickaxe$/.test(x.name)))return{thought:'Progressione automatica: utensile base mancante.',goal:'creare un piccone',action:'craft',args:{name:'pickaxe',count:1},expected:'piccone nell inventario'}
