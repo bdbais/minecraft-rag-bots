@@ -1,6 +1,14 @@
 # Minecraft RAG Bots — Manuale d’uso
 
-Versione di riferimento: **0.19.3**
+Versione di riferimento: **0.19.54**
+
+## Download beta
+
+Pagina release: https://github.com/bdbais/minecraft-rag-bots-beta/releases/latest
+
+Installer Windows diretto: https://github.com/bdbais/minecraft-rag-bots-beta/releases/latest/download/Minecraft-RAG-Bots-0.19.54-Windows-Setup-x64.exe
+
+Sorgenti e changelog sono allegati nella stessa pagina. Per segnalare un problema includere versione, sistema operativo, modello AI, log tecnico esportato e passi per riprodurlo.
 
 Minecraft RAG Bots permette di gestire più bot Minecraft Java, con memoria persistente (RAG), chat, mappe, crafting, collaborazione tra bot e una biografia degli eventi. Il manuale descrive l’uso quotidiano dell’applicazione; non è necessario conoscere il codice.
 
@@ -15,9 +23,34 @@ Servono:
 
 Per un’installazione da sorgente: installare Node.js LTS, eseguire `npm install`, poi `npm start`. L’installer Windows include l’avvio dell’applicazione; dopo l’installazione aprire **Help → About** per verificare la versione.
 
+Per i beta tester: usare un mondo/server di prova, fare un backup della cartella dati prima di aggiornare e iniziare con un solo bot. L’app non invia credenziali nei report.
+
 ## 2. Primo avvio e Ollama
 
 All’avvio controllare il pannello di stato Ollama. Deve risultare **in esecuzione**, con il modello agente e il modello embedding disponibili. Se Ollama non è installato, usare il pulsante di installazione proposto oppure installarlo dal sito ufficiale e riaprire l’app.
+
+Per provider cloud inserire la API key nella configurazione del bot. La dashboard mostra token usati, costo del provider attivo e stime equivalenti ChatGPT, Claude, Kimi e offline. I prezzi e il consumo elettrico sono stime: verificare sempre il listino del proprio account.
+
+## 3. Creare e gestire i bot
+
+Usare **Nuovo bot** per configurare server, username, modello, personalità e profilo psicofisico. In elenco, l’icona **⧉** clona direttamente un bot; nella dashboard è disponibile anche **Clona bot**. La copia crea una nuova identità e non trasferisce memoria privata, biografia o API key.
+
+Il pulsante **START AI** connette automaticamente il bot se necessario; diventa **STOP AI** e arresta/disconnette il bot. Con più bot usare un modello leggero e aumentare l’intervallo decisionale per evitare timeout.
+
+## 4. Memoria e apprendimento
+
+Ogni bot mantiene biografia, lezioni, relazioni e ricordi separati. Le lezioni riuscite e verificate vengono anche raccolte nella memoria condivisa `shared-skills.json`: i nuovi bot le ricevono come skill comuni, senza ereditare personalità o traumi. Esportare periodicamente biografia e report tecnico.
+
+## 5. Mappa, inventario e collaborazione
+
+Aprire 🗺 per vedere il mondo esplorato; usare rotellina per zoom, GPS per seguire il bot e i filtri POI per evidenziare luoghi. I checkpoint di squadra condividono coordinate, chest, pericoli e risorse. Inventario, barra rapida, crafting, chest e ricette mostrano tooltip passando con il mouse.
+
+## 6. Diagnosi rapida
+
+- **Bootstrap non pronto**: verificare Ollama/modelli e leggere Attività tecniche.
+- **Bot fermo**: premere STOP AI, controllare il log, poi START AI; il watchdog interrompe azioni senza progresso.
+- **Crafting fallisce**: verificare legno/materiali, banco accessibile e inventario; usare un prompt esplicito come “raccogli legna, crafta un banco e posizionalo”.
+- **Costo cloud inatteso**: controllare token e prezzi nella dashboard, poi fermare il bot o passare a un modello locale.
 
 Modelli consigliati:
 
@@ -125,4 +158,3 @@ Usare server propri o con autorizzazione. Le credenziali Microsoft non devono es
 ![Mappa GPS](screenshots/map.png)
 
 ![Configurazione bot](screenshots/editor.png)
-
