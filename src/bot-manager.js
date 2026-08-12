@@ -26,6 +26,21 @@ import { SharedLearningLibrary } from './shared-learning.js'
 import { LineageStore } from './lineage.js'
 
 const { pathfinder, Movements } = pathfinderPackage
+export function socialResponse(config, username, text) {
+  const name = config.name || config.username || 'bot'
+  const personality = String(config.personality || 'balanced')
+  const message = String(text || '').trim()
+  if (/^(ciao|salve|buongiorno|buonasera|hello|hi|hey)\b/i.test(message)) {
+    const style = personality === 'social' ? 'Mi fa piacere vederti.' : personality === 'cautious' ? 'Sono al sicuro e sto osservando la zona.' : personality === 'explorer' ? 'Ho appena scoperto qualcosa: vuoi esplorare con me?' : 'Sto imparando e preparando il prossimo obiettivo.'
+    return `Ciao ${username}! Sono ${name}. ${style} Come posso aiutarti?`
+  }
+  if (/\b(grazie|thank you|thanks)\b/i.test(message)) return `Di nulla, ${username}. Se vuoi possiamo collaborare ancora.`
+  if (/\b(aiuto|help|soccorso|liberami|salvami)\b/i.test(message)) return `Ricevuto, ${username}: valuto il percorso più sicuro e ti rispondo appena posso.`
+  if (/\b(chi sei|come ti chiami|who are you)\b/i.test(message)) return `Sono ${name}. La mia personalità è ${personality} e sto costruendo la mia storia attraverso le esperienze.`
+  if (/\b(obiettivo|obbiettivo|goal|cosa fai|che fai)\b/i.test(message)) return `Il mio obiettivo attuale è sopravvivere, imparare e contribuire alla squadra. Posso cambiare piano se mi dai una priorità.`
+  if (/\b(addio|arrivederci|bye|a dopo)\b/i.test(message)) return `A presto, ${username}. Terrò a mente questo incontro.`
+  return null
+}
 export function startupSummary(history=[],requestedAt=null,ready=false){const measuredAt=Date.now(),recent=history.filter(x=>Number.isFinite(x.durationMs)&&x.durationMs>=0).slice(-10),durations=recent.map(x=>x.durationMs),averageMs=durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):null;return{samples:durations.length,averageMs,lastMs:durations.at(-1)??null,minMs:durations.length?Math.min(...durations):null,maxMs:durations.length?Math.max(...durations):null,currentWaitMs:requestedAt&&!ready?Math.max(0,measuredAt-requestedAt):null,measuredAt,recent}}
 export class BotManager extends EventEmitter {
   constructor(dataDir) { super(); this.dataDir = dataDir; this.entries = new Map(); this.scheduler = new InferenceScheduler(1); this.publishTimers = new Map();this.teamStores=new Map() }
@@ -58,7 +73,7 @@ export class BotManager extends EventEmitter {
     const id = config.id || crypto.randomUUID()
     if (this.entries.has(id)) throw new Error('Questo bot è già connesso')
     let startupHistory=[];try{const saved=JSON.parse(await fs.readFile(path.join(this.dataDir,`startup-${id}.json`),'utf8'));startupHistory=Array.isArray(saved)?saved:[]}catch{}
-    const entry = { config: { ...config, id }, connection: 'connecting', logs: [], pendingInstructions: [], logDedupe: new Map(), startRequested:config.autoStart !== false, connectRequestedAt:Date.now(), startupHistory }
+    const entry = { config: { ...config, id }, connection: 'connecting', logs: [], pendingInstructions: [], socialReplyAt: new Map(), logDedupe: new Map(), startRequested:config.autoStart !== false, connectRequestedAt:Date.now(), startupHistory }
     entry.teamStore=await this.checkpointStore({...config,id})
     this.entries.set(id, entry); this.publish(id)
     entry.aiUsage={cloudPromptTokens:0,cloudCompletionTokens:0,offlinePromptTokens:0,offlineCompletionTokens:0,cloudCost:0,offlineCost:0,requests:0,comparisons:{ChatGPT:0,Claude:0,Kimi:0}}
@@ -135,10 +150,9 @@ export class BotManager extends EventEmitter {
       entry.social?.save().catch(()=>{})
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
-      if (/^(ciao|salve|buongiorno|buonasera|hello|hi|hey)\b/i.test(text) && !teammate) {
-        bot.chat(`Ciao ${username}! Sono ${config.name}. Sto imparando: cosa stai facendo e come posso aiutarti?`)
-        this.log(id, 'info', `Saluto inviato a ${username}`)
-      }
+      const response = !teammate ? socialResponse(config, username, text) : (addressed ? socialResponse(config, username, text) : null)
+      const lastReply = entry.socialReplyAt.get(sender) || 0
+      if (response && Date.now() - lastReply > 15000) { entry.socialReplyAt.set(sender, Date.now()); bot.chat(response); this.log(id, 'info', `Risposta sociale a ${username}: ${response}`) }
       entry.biography?.add('chat', 'Voci dal mondo', `${config.name} ha letto un messaggio di ${username}: “${text}”.`, { username, addressed }).catch(()=>{})
       if (!teammate || addressed) {
         const instruction = `Conversazione sociale con ${username}. Messaggio ricevuto: “${text}”. Rispondi in chat entro questa azione con una frase coerente con la tua personalità; se il messaggio contiene un obiettivo, chiariscilo e proponi una collaborazione. Ricorda questa persona e il contesto per i prossimi incontri. Non limitarti a salutare.`
