@@ -314,8 +314,10 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (!boat) throw new Error('barca assente')
       const water = bot.findBlock({ matching: b => /^(water|kelp|seagrass)$/.test(b?.name || ''), maxDistance: 16 })
       if (!water) throw new Error('nessuna acqua navigabile vicina')
-      await bot.equip(boat, 'hand'); const entity = await bot.placeEntity(water, new Vec3(0, 1, 0)); await bot.mount(entity)
-      bot.setControlState?.('forward', true); await sleep(Math.min(10000, Math.max(1000, Number(a.durationMs) || 4000))); bot.setControlState?.('forward', false); return 'barca posata e navigazione completata'
+      await bot.equip(boat, 'hand'); const before=bot.entity.position.clone?bot.entity.position.clone():new Vec3(bot.entity.position.x,bot.entity.position.y,bot.entity.position.z); const entity = await bot.placeEntity(water, new Vec3(0, 1, 0)); await bot.mount(entity)
+      try { bot.setControlState?.('forward', true); await sleep(Math.min(10000, Math.max(1000, Number(a.durationMs) || 4000))) }
+      finally { bot.setControlState?.('forward', false); try { await bot.dismount?.() } catch {} }
+      const after=bot.entity.position, distance=before.distanceTo(after); if(distance<2)throw new Error('barca posata ma nessun avanzamento verificato'); return `barca posata e navigazione completata: ${Math.round(distance)} blocchi`
     }
     case 'build_shelter': {
       const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
@@ -357,6 +359,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const wornTool=items.find(x=>/_pickaxe$|_axe$|_shovel$|_sword$|fishing_rod$/.test(x.name)&&Number.isFinite(Number(x.maxDurability))&&Number(x.maxDurability)>0&&((Number(x.durabilityUsed)||0)/Number(x.maxDurability))>=0.8)
   const equipment=Array.isArray(observation.equipment)?observation.equipment:[]
   const armorSlots=[['helmet','head'],['chestplate','torso'],['leggings','legs'],['boots','feet']]
+  const armorMaterial=inventoryTotal(bot,x=>x.name==='diamond')>=8?'diamond':inventoryTotal(bot,x=>x.name==='iron_ingot')>=8?'iron':null
   const nearbyEntities=Array.isArray(observation.nearbyEntities)?observation.nearbyEntities:[], nearbyBlocks=Array.isArray(observation.nearbyBlocks)?observation.nearbyBlocks:[]
   const hostileNames=/zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
   const iron=inventoryTotal(bot,x=>x.name==='iron_ingot')
@@ -384,6 +387,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(Number(observation.health)>0&&Number(observation.health)<8&&food)return{thought:'Priorità survival: salute critica.',goal:'mangiare e cercare sicurezza',action:'eat',args:{name:food.name},expected:'salute stabilizzata'}
   if(wornTool&&table)return{thought:'Manutenzione preventiva: un attrezzo è quasi consumato.',goal:`sostituire ${wornTool.name} prima di restare senza strumento`,action:'craft',args:{name:wornTool.name,count:1},expected:`nuovo ${wornTool.name} disponibile`}
   for(const [part,destination] of armorSlots){if(!equipment.some(name=>String(name).endsWith(`_${part}`))){const armor=items.filter(x=>String(x.name).endsWith(`_${part}`)).sort((a,b)=>/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name))[0];if(armor)return{thought:'Difesa preventiva: armatura disponibile ma non indossata.',goal:`indossare ${armor.name} prima di esplorare`,action:'equip',args:{name:armor.name,destination},expected:`${armor.name} equipaggiato`}}}
+  if(table&&armorMaterial){for(const part of ['chestplate','helmet','leggings','boots'])if(!has(`${armorMaterial}_${part}`))return{thought:'Difesa preventiva: materiali sufficienti per un pezzo di armatura.',goal:`craftare ${armorMaterial}_${part} per aumentare la sopravvivenza`,action:'craft',args:{name:`${armorMaterial}_${part}`,count:1},expected:`${armorMaterial}_${part} nell’inventario`}}
   const edible=farmAnimals.filter(x=>/^(cow|pig|chicken|sheep|rabbit)$/.test(String(x?.name||'')))
   if(foodCount<4&&(foodCount===0||Number(observation.food)>=8)&&edible.length&&farmAnimals.length<2)return{thought:'Scorta preventiva: poche provviste e animale commestibile vicino.',goal:`cacciare ${edible[0].name} per creare una riserva di cibo`,action:'hunt_nearest',args:{target:edible[0].name},expected:'carne raccolta e scorta aumentata'}
   if(hostile&&!items.some(x=>/_sword$|_axe$/.test(x.name))&&table)return{thought:'Difesa: un mob ostile è vicino e manca un’arma.',goal:'creare un’arma per difendersi',action:'craft',args:{name:'sword',count:1},expected:'arma nell inventario'}
