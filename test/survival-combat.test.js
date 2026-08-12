@@ -22,3 +22,11 @@ test('attack_nearest does not select passive animals by default', async () => {
   }
   await assert.rejects(() => execute(bot, { action: 'attack_nearest', args: {} }), /no allowed nearby target/)
 })
+
+test('attack_nearest equips a shield in the off hand when available', async () => {
+  let destination = ''
+  const target = { type: 'mob', name: 'zombie', position: { distanceTo: () => 2 } }
+  const bot = { entity: { position: { distanceTo: () => 2 } }, inventory: { items: () => [{ name: 'shield', count: 1 }] }, nearestEntity: () => target, equip: async (_item, slot) => { destination = slot }, pathfinder: { setMovements: () => {}, goto: async () => {} }, attack: () => {} }
+  await execute(bot, { action: 'attack_nearest', args: {} })
+  assert.equal(destination, 'off-hand')
+})
