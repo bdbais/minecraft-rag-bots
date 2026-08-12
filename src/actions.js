@@ -161,6 +161,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'explore': {
       const radius=Math.max(8,Math.min(Number(a.radius)||18,40)),angle=Math.random()*Math.PI*2,p=bot.entity.position
       const x=Math.floor(p.x+Math.cos(angle)*radius),z=Math.floor(p.z+Math.sin(angle)*radius)
+      if(bot.registry?.blocksByName&&bot.pathfinder?.setMovements){const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry.blocksByName.lava?.id,bot.registry.blocksByName.water?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalXZ(x,z));return `esplorata la zona verso ${x},${z}`
     }
     case 'follow_player': {
