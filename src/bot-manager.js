@@ -150,6 +150,12 @@ export class BotManager extends EventEmitter {
     })
     bot.on('health', () => this.publish(id))
     bot.on('heldItemChanged',()=>this.publish(id,true))
+    // Mineflayer emits setSlot whenever a slot changes (pickup, crafting,
+    // chest transfers, hotbar selection). Publish per-bot snapshots so a
+    // second bot cannot leave the dashboard with a stale/empty inventory.
+    bot.on('setSlot', () => this.publish(id, true))
+    bot.on('windowOpen', () => this.publish(id, true))
+    bot.on('windowClose', () => this.publish(id, true))
     bot.on('entityDead', entity => entry.lifetime?.noteDeath(entity).then(killed=>{if(killed){this.log(id,'success',`Animale abbattuto: ${entity.name||'sconosciuto'}`);this.publish(id)}}).catch(()=>{}))
     bot.on('chat', (username, message) => {
       const sender=String(username||'').trim().toLowerCase()

@@ -9,14 +9,14 @@ function scan(bot,p,radius){const old=cache.get(bot);if(old&&old.radius===radius
 export function observe(bot, options={}) {
   const p = bot.entity.position
   const radius=Math.max(16,Math.min(Number(options.visionRadius)||48,64)),vision=scan(bot,p,radius)
-  const inventory = Object.fromEntries(bot.inventory.items().map(i => [i.name, (bot.inventory.items().filter(x => x.name === i.name).reduce((n, x) => n + x.count, 0))]))
-  const hotbarStart=Number.isInteger(bot.inventory.hotbarStart)?bot.inventory.hotbarStart:36,hotbar=Array.from({length:9},(_,index)=>{const item=bot.inventory.slots[hotbarStart+index];return item?{slot:index,name:item.name,count:item.count,displayName:item.displayName||item.name}:null}),held=bot.heldItem?{slot:Number.isInteger(bot.quickBarSlot)?bot.quickBarSlot:null,name:bot.heldItem.name,count:bot.heldItem.count,displayName:bot.heldItem.displayName||bot.heldItem.name}:null
+  const inv=bot.inventory||{}, rawItems=typeof inv.items==='function'?(inv.items()||[]):[], items=rawItems.filter(Boolean), slots=Array.isArray(inv.slots)?inv.slots:[], inventory = Object.fromEntries(items.map(i => [i.name, (items.filter(x => x.name === i.name).reduce((n, x) => n + (Number(x.count)||0), 0))]))
+  const hotbarStart=Number.isInteger(inv.hotbarStart)?inv.hotbarStart:36,hotbar=Array.from({length:9},(_,index)=>{const item=slots[hotbarStart+index];return item?{slot:index,name:item.name,count:item.count,displayName:item.displayName||item.name}:null}),held=bot.heldItem?{slot:Number.isInteger(bot.quickBarSlot)?bot.quickBarSlot:null,name:bot.heldItem.name,count:bot.heldItem.count,displayName:bot.heldItem.displayName||bot.heldItem.name}:null
   return {
     position: { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) },
     health: bot.health, food: bot.food, oxygen: bot.oxygenLevel,
     dimension: bot.game?.dimension, gameMode: bot.game?.gameMode || bot.game?.gamemode || bot.gameMode || 'unknown', time: bot.time?.timeOfDay,
     inventory, hotbar, selectedHotbarSlot:Number.isInteger(bot.quickBarSlot)?bot.quickBarSlot:null, heldItem:held, nearbyBlocks: vision.nearby, visibleTargets:vision.targets, nearbyEntities:vision.entities,
     vision:{radiusBlocks:radius,serverChunks:bot.game?.serverViewDistance||null},
-    equipment: [bot.heldItem, ...(bot.inventory.slots.slice(5, 9))].filter(Boolean).map(i => i.name)
+    equipment: [bot.heldItem, ...(slots.slice(5, 9))].filter(Boolean).map(i => i.name)
   }
 }
