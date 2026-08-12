@@ -10,7 +10,26 @@ const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
 const inventoryTotal=(bot,filter=()=>true)=>(bot.inventory?.items?.()||[]).filter(filter).reduce((n,x)=>n+(x.count||0),0)
 async function compactInventory(bot){const slots=bot.inventory?.slots||[],byKey=new Map();for(let i=0;i<slots.length;i++){const item=slots[i];if(!item)continue;const key=`${item.type}:${item.metadata||0}`;const previous=byKey.get(key);if(previous!=null&&typeof bot.moveSlotItem==='function'){try{await bot.moveSlotItem(i,previous)}catch{}}else byKey.set(key,i)}}
-async function collectNearbyDrops(bot,maxDistance=16){await sleep(700);const drops=Object.values(bot.entities||{}).filter(e=>e.name==='item'&&e.position?.distanceTo(bot.entity.position)<=maxDistance).sort((a,b)=>a.position.distanceTo(bot.entity.position)-b.position.distanceTo(bot.entity.position));for(const drop of drops.slice(0,20)){try{await bot.pathfinder.goto(new goals.GoalNear(drop.position.x,drop.position.y,drop.position.z,1));await sleep(350)}catch{}}await sleep(900)}
+async function collectNearbyDrops(bot,maxDistance=16){
+  await sleep(700)
+  const drops=Object.values(bot.entities||{}).filter(e=>e.name==='item'&&e.position?.distanceTo(bot.entity.position)<=maxDistance).sort((a,b)=>a.position.distanceTo(bot.entity.position)-b.position.distanceTo(bot.entity.position))
+  let picked=0
+  for(const drop of drops.slice(0,20)){
+    try{
+      await bot.pathfinder.goto(new goals.GoalNear(drop.position.x,drop.position.y,drop.position.z,1))
+      // Mineflayer picks items up asynchronously. A second, tighter approach
+      // avoids reporting success while the entity is still on the ground.
+      await sleep(500)
+      if(Object.values(bot.entities||{}).includes(drop)){
+        await bot.pathfinder.goto(new goals.GoalNear(drop.position.x,drop.position.y,drop.position.z,0.35)).catch(()=>{})
+        await sleep(500)
+      }
+      if(!Object.values(bot.entities||{}).includes(drop))picked++
+    }catch{}
+  }
+  await sleep(400)
+  return picked
+}
 async function findWoodWithExploration(bot,count){await sleep(1200);let positions=bot.findBlocks({matching:isWood,maxDistance:64,count});if(positions.length)return positions;const origin=bot.entity.position,offsets=[[32,0],[0,32],[-32,0],[0,-32],[48,48],[-48,-48]];for(const [dx,dz] of offsets){try{await bot.pathfinder.goto(new goals.GoalXZ(Math.floor(origin.x+dx),Math.floor(origin.z+dz)))}catch{}await sleep(800);positions=bot.findBlocks({matching:isWood,maxDistance:64,count});if(positions.length)return positions}return[]}
 export function resolveCraftName(bot,requested){
   let name=String(requested||'').toLowerCase().trim().replace(/[^a-z0-9_ ]/g,'').replace(/ +/g,'_'),items=bot.inventory.items?.()||[],names=new Set(items.map(x=>x.name))
@@ -109,8 +128,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         if(floor?.boundingBox==='block'&&feet&&head&&/^(air|cave_air|void_air)$/.test(feet.name)&&/^(air|cave_air|void_air)$/.test(head.name)&&!/(lava|water)/.test(floor.name))candidates.push({x:p.x+dx,y:p.y,z:p.z+dz,d:Math.abs(dx)+Math.abs(dz)})
       }
       candidates.sort((a,b)=>b.d-a.d)
-      if(!candidates.length)return execute(bot,{action:'dig_escape',goal:'aprire un passaggio di fuga verificato',args:{}},{allowPvp,onStorageSeen,onAttackTarget,onShareCheckpoint})
-      const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry?.blocksByName?.water?.id,bot.registry?.blocksByName?.lava?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)
+      if(!candidates.length){try{return await execute(bot,{action:'dig_escape',goal:'aprire un passaggio di fuga verificato',args:{}},{allowPvp,onStorageSeen,onAttackTarget,onShareCheckpoint})}catch(error){throw new Error(`${error.message}; il bot è ancora dentro acqua o lava`)}}
+      if(bot.registry?.blocksByName){const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry?.blocksByName?.water?.id,bot.registry?.blocksByName?.lava?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(candidates[0].x,candidates[0].y,candidates[0].z,1)); const after=bot.entity.position.floored(),afterFeet=bot.blockAt(after),afterHead=bot.blockAt(new Vec3(after.x,after.y+1,after.z)); if(/lava|water/.test(`${afterFeet?.name||''} ${afterHead?.name||''}`))throw new Error('il bot è ancora dentro acqua o lava dopo la fuga'); return `pericolo evitato verso ${candidates[0].x},${candidates[0].y},${candidates[0].z}`
     }
     case 'dig_escape': {
@@ -183,8 +202,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const limit = Math.min(Math.max(Number(a.maxDistance) || 24, 4), 48)
       const drops = Object.values(bot.entities).filter(e => e.name === 'item' && e.position?.distanceTo(bot.entity.position) <= limit).sort((x,y) => x.position.distanceTo(bot.entity.position) - y.position.distanceTo(bot.entity.position))
       if (!drops.length) throw new Error('nessun oggetto caduto visibile')
-      let collected = 0
-      for (const drop of drops.slice(0, 12)) { await bot.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)); collected++ }
+      const collected = await collectNearbyDrops(bot, limit)
+      if (!collected) throw new Error('gli oggetti sono ancora a terra: avvicinamento o inventario non riuscito')
       return `raccolti ${collected} gruppi di oggetti caduti`
     }
     case 'inspect_storage': {
@@ -285,7 +304,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < 16 && ((e.type === 'mob' && (requested ? String(e.name || '').toLowerCase() === requested : hostile.test(e.name || ''))) || (allowPvp && e.type === 'player' && e.username !== bot.username)))
       if (!target) throw new Error('no allowed nearby target')
       const shield=bot.inventory?.items?.().find(i=>i.name==='shield'); if(shield)try{await bot.equip(shield,'off-hand')}catch{}
-      const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)
+      if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2))
       onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `attacked ${target.name || target.username}`
     }
@@ -293,7 +312,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const edible = /cow|pig|chicken|sheep|rabbit|cod|salmon/i
       const target = bot.nearestEntity(e => e.type === 'mob' && edible.test(e.name || '') && e.position.distanceTo(bot.entity.position) < 16)
       if (!target) throw new Error('nessun animale commestibile vicino')
-      const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)
+      if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
     default: throw new Error(`unsupported action ${decision.action}`)
