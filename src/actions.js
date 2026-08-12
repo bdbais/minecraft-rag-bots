@@ -114,7 +114,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.pathfinder.goto(new goals.GoalNear(candidates[0].x,candidates[0].y,candidates[0].z,1)); return `pericolo evitato verso ${candidates[0].x},${candidates[0].y},${candidates[0].z}`
     }
     case 'dig_escape': {
-      bot.pathfinder?.setGoal(null);bot.clearControlStates?.();const p=bot.entity.position.floored(),dirs=[[1,0],[-1,0],[0,1],[0,-1]],safe=[]
+      bot.pathfinder?.setGoal(null);bot.clearControlStates?.();const pick=bot.inventory?.items?.().find(i=>/_pickaxe$/.test(i.name));if(pick)await bot.equip(pick,'hand');const p=bot.entity.position.floored(),dirs=[[1,0],[-1,0],[0,1],[0,-1]],safe=[]
       for(const [dx,dz] of dirs){const wall=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)),head=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz)),beyond=bot.blockAt(new Vec3(p.x+dx*2,p.y,p.z+dz*2)),beyondHead=bot.blockAt(new Vec3(p.x+dx*2,p.y+1,p.z+dz*2));if(!wall||wall.boundingBox!=='block'||!head||head.boundingBox!=='block'||!beyond||!beyondHead||!/^(air|cave_air|void_air)$/.test(beyond.name)||!/^(air|cave_air|void_air)$/.test(beyondHead.name)||/(lava|water)/.test(`${wall.name} ${head.name} ${beyond.name} ${beyondHead.name}`))continue;safe.push([dx,dz,wall,head])}
       if(!safe.length)throw new Error('nessun tunnel di fuga verificato: richiedere aiuto')
       const [dx,dz,wall,head]=safe[0];await bot.dig(wall);await bot.dig(head);await bot.pathfinder.goto(new goals.GoalNear(p.x+dx*2,p.y,p.z+dz*2,1));return `passaggio di fuga scavato verso ${p.x+dx*2},${p.y},${p.z+dz*2}`

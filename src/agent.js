@@ -1,4 +1,5 @@
 import { autonomousProgressionDecision, basicProgressionDecision, craftableBasicRecipes, decisionSchema, execute, normalizeDecision } from './actions.js'
+import { trapEscapeDecision } from './trap-escape.js'
 import { observe } from './observe.js'
 import { personalityPrompt } from './personalities.js'
 import { psychProfile } from './traits.js'
@@ -63,7 +64,7 @@ export class Agent {
     const prompt = `CURRENT OBSERVATION (visible now; absence does not erase memory):\n${JSON.stringify(state, null, 2)}\n\nWORLD KNOWLEDGE (persistent discoveries; use coordinates to revisit known resources and places):\n${JSON.stringify(worldKnowledge,null,2)}\n\nTEAMMATES (coordinate, do not duplicate work):\n${JSON.stringify(team, null, 2)}\n\nSOCIAL KARMA: positive karma indicates people who helped or acted kindly; negative karma indicates betrayal, insults or danger. Let it change who you trust, whom you help, and how cautiously you share resources. Do not punish someone forever: update your judgement after new evidence.\n\nTEAM CHECKPOINTS (persistent shared coordinates):\n${JSON.stringify(checkpoints, null, 2)}\n\nRETRIEVED KNOWLEDGE AND EXPERIENCE:\n${memories.map((m, i) => `${i + 1}. ${m.text}`).join('\n') || 'none'}\n\n${manual ? `HUMAN INSTRUCTION (highest priority if safe and possible): ${manual}\n\n` : ''}Select the next small action.`
     this.phase = 'planning'; this.emit('status', { running: true })
     this.planningController = new AbortController()
-    let decision=basicProgressionDecision(this.bot,manual)
+    let decision=trapEscapeDecision(manual)||basicProgressionDecision(this.bot,manual)
     const hazard=Array.isArray(state.nearbyBlocks)&&state.nearbyBlocks.some(x=>/lava|water/i.test(typeof x==='string'?x:x.name||''))
     const nearbyPlayer=Array.isArray(state.nearbyEntities)&&state.nearbyEntities.find(x=>x?.type==='player'&&x?.username&&x.username!==this.bot.username)
     if(!manual&&!hazard&&nearbyPlayer){const last=this.socialGreetings.get(nearbyPlayer.username)||0;if(Date.now()-last>120000){this.socialGreetings.set(nearbyPlayer.username,Date.now());decision={thought:'Interazione sociale: un giocatore è vicino.',goal:`salutare ${nearbyPlayer.username}`,action:'chat',args:{message:`Ciao ${nearbyPlayer.username}! Sono ${this.config.name||this.bot.username}, posso aiutarti?`},expected:'saluto inviato'}}}
