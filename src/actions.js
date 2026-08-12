@@ -283,8 +283,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'smelt': {
       if (typeof bot.openFurnace !== 'function') throw new Error('fonderia non disponibile nel client Minecraft')
-      const furnace=bot.findBlock({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
-      if(!furnace)throw new Error('nessun forno raggiungibile per fondere')
+      let furnace=bot.findBlock({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
+      if(!furnace){const item=bot.inventory.items().find(i=>/^(furnace|blast_furnace|smoker)$/.test(i.name));if(item){const p=bot.entity.position.floored();await bot.equip(item,'hand');for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),air=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!air||!/^(air|cave_air|void_air)$/.test(air.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));furnace=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(furnace)break}catch{}}}}if(!furnace)throw new Error('nessun forno raggiungibile per fondere')
       await bot.pathfinder.goto(new goals.GoalNear(furnace.position.x,furnace.position.y,furnace.position.z,3))
       const rawName=String(a.name||'').toLowerCase(),input=bot.inventory.items().find(i=>i.name===rawName)||bot.inventory.items().find(i=>/raw_(iron|gold|copper)|iron_ore|gold_ore|copper_ore|beef|porkchop|chicken|mutton|cod|salmon|sand|cobblestone/.test(i.name))
       if(!input)throw new Error('nessun materiale adatto da fondere nell’inventario')
