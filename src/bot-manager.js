@@ -125,6 +125,21 @@ export class BotManager extends EventEmitter {
           result: ({ success, result, learned, timing }) => { performance.record({success,...timing}).then(()=>this.publish(id)).catch(()=>{});this.log(id, success ? 'success' : 'error', `${String(result)}${learned ? ` · Lezione: ${learned.lesson}` : ''}`); biography.add(success ? 'success' : 'failure', success ? 'Un passo avanti' : 'Una difficoltà', `${config.name} ${success ? 'è riuscito nel suo intento' : 'ha incontrato un ostacolo'}: ${result}.${learned ? ` Ha imparato: ${learned.lesson}` : ''}`, { learned }).then(() => biography.observeMilestones(learned?.delta)).catch(()=>{}) }
         }, learner)
         entry.agent.config.socialContext=()=>entry.social?{people:entry.social.people,goals:entry.social.openGoals()}:{}
+        entry.teamSocialAt = new Map()
+        entry.teamSocialTimer = setInterval(() => {
+          if (!entry.bot?.entity) return
+          for (const teammate of this.teamContext(id)) {
+            if (teammate.distance > 16) continue
+            const last = entry.teamSocialAt.get(teammate.id) || 0
+            if (Date.now() - last < 120000) continue
+            entry.teamSocialAt.set(teammate.id, Date.now())
+            const goal = teammate.goal ? ` Io sto lavorando su: ${teammate.goal}.` : ''
+            bot.chat(`Ciao ${teammate.name}, ti vedo vicino. Possiamo coordinarci: tu cosa stai facendo?${goal}`)
+            entry.social?.remember(teammate.name, { trust: 0.02, affection: 0.02, memory: `Incontro vicino alla posizione condivisa; obiettivo: ${teammate.goal || 'non dichiarato'}` })
+            entry.social?.save().catch(() => {})
+            this.log(id, 'info', `Coordinamento automatico con ${teammate.name}`)
+          }
+        }, 15000)
         entry.agent.config.onObservation=state=>worldMap.rememberTargets(state.visibleTargets,state.dimension)
         entry.agent.config.worldKnowledge=()=>worldMap.knowledge(bot.entity?.position,bot.game?.dimension,80)
         for (const instruction of entry.pendingInstructions.splice(0)) entry.agent.instruct(instruction)
@@ -162,7 +177,7 @@ export class BotManager extends EventEmitter {
     })
     bot.on('death', () => { const memorial={botId:id,name:config.name,at:new Date().toISOString(),position:bot.entity?.position?{x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z)}:null,dimension:bot.game?.dimension||'unknown',hardcore:!!bot.game?.hardcore};fs.appendFile(path.join(this.dataDir,'memorials.jsonl'),`${JSON.stringify(memorial)}\n`).catch(()=>{});this.log(id,'error',`Il bot è morto${memorial.position?` a ${memorial.position.x},${memorial.position.y},${memorial.position.z}`:''}`);if (entry.agent) { entry.agent.failures++; entry.agent.instruct('Commemora il difensore caduto: se hai materiali e sei in sicurezza costruisci un piccolo memoriale nel luogo della morte e scrivi un cartello con il suo nome. Non rischiare la vita per farlo.') } entry.biography?.add('death', 'La caduta', `${config.name} è morto, ma la sua storia e le sue lezioni continueranno dopo la rinascita.`,{memorial}).catch(()=>{}) })
     bot.on('kicked', reason => { entry.connection = 'kicked'; this.log(id, 'error', `Espulso: ${String(reason)}`) })
-    bot.on('end', reason => { clearInterval(entry.chestTimer);clearInterval(entry.mapTimer);clearInterval(entry.lifetimeTimer);entry.lifetime?.save().catch(()=>{});entry.onlineSince=null; if (!this.entries.has(id) || entry.closing) return; entry.connection = 'offline'; entry.agent?.stop(); this.log(id, 'info', `Disconnesso: ${reason}`); entry.biography?.endSession(String(reason)).catch(()=>{}) })
+    bot.on('end', reason => { clearInterval(entry.chestTimer);clearInterval(entry.mapTimer);clearInterval(entry.lifetimeTimer);clearInterval(entry.teamSocialTimer);entry.lifetime?.save().catch(()=>{});entry.onlineSince=null; if (!this.entries.has(id) || entry.closing) return; entry.connection = 'offline'; entry.agent?.stop(); this.log(id, 'info', `Disconnesso: ${reason}`); entry.biography?.endSession(String(reason)).catch(()=>{}) })
     bot.on('error', error => this.log(id, 'error', error.message))
     return id
   }
@@ -188,6 +203,6 @@ export class BotManager extends EventEmitter {
     const markdown = await new EpicBookGenerator(protagonist.ollama).generate(source, onProgress)
     return { name: protagonist.config.name, markdown }
   }
-  async disconnect(id) { const e = this.entries.get(id); if (!e) return; e.closing = true; clearInterval(e.chestTimer);clearInterval(e.mapTimer);clearInterval(e.lifetimeTimer); e.agent?.stop();await e.lifetime?.save(); await e.biography?.endSession('Disconnessione dalla dashboard'); e.bot?.quit('Dashboard disconnect'); this.entries.delete(id); this.emit('removed', id) }
+  async disconnect(id) { const e = this.entries.get(id); if (!e) return; e.closing = true; clearInterval(e.chestTimer);clearInterval(e.mapTimer);clearInterval(e.lifetimeTimer);clearInterval(e.teamSocialTimer); e.agent?.stop();await e.lifetime?.save(); await e.biography?.endSession('Disconnessione dalla dashboard'); e.bot?.quit('Dashboard disconnect'); this.entries.delete(id); this.emit('removed', id) }
   closeAll() { for (const id of [...this.entries.keys()]) this.disconnect(id) }
 }
