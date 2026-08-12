@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -286,6 +286,12 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if(!fuel)throw new Error('nessun combustibile disponibile')
       const furnaceWindow=await bot.openFurnace(furnace);await furnaceWindow.putFuel(fuel.type,Math.min(fuel.count,Number(a.count)||input.count));await furnaceWindow.putInput(input.type,Math.min(input.count,Number(a.count)||input.count));await sleep(Math.min(2000,Math.max(500,Number(a.waitMs)||1000)));furnaceWindow.close();return `avviata fusione di ${input.name}`
     }
+    case 'sleep': {
+      if(typeof bot.sleep!=='function')throw new Error('sonno non disponibile nel client Minecraft')
+      const bed=bot.findBlock({matching:b=>/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)?_?bed$/.test(b?.name||''),maxDistance:32})
+      if(!bed)throw new Error('nessun letto raggiungibile')
+      await bot.pathfinder.goto(new goals.GoalNear(bed.position.x,bed.position.y,bed.position.z,2));await bot.sleep(bed);return 'notte superata dormendo al sicuro'
+    }
     case 'equip': {
       const item = bot.inventory.items().find(i => i.name === String(a.name || ''))
       if (!item) throw new Error(`item not in inventory: ${a.name}`)
@@ -368,6 +374,9 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(items.length>=20&&nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Inventario quasi pieno: depositare i materiali non essenziali.',goal:'organizzare le risorse nella chest',action:'store_items',args:{maxDistance:32},expected:'materiali depositati e inventario ottimizzato'}
   if(nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Memoria automatica: ispezionare il contenitore vicino.',goal:'leggere il contenuto della chest',action:'inspect_storage',args:{},expected:'contenuto registrato nella memoria'}
   if(Number(observation.health)>0&&Number(observation.health)<6&&!food)return{thought:'Emergenza: salute critica senza cibo.',goal:'raggiungere una posizione sicura e chiedere aiuto',action:'escape_hazard',args:{},expected:'uscire dal pericolo senza costruire'}
+  const time=Number(observation.time)
+  const night=time>=12500&&time<=23500,bedNear=nearbyBlocks.some(x=>/bed$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/bed$/.test(b?.name||''),maxDistance:32})
+  if(night&&bedNear)return{thought:'Sopravvivenza: è notte e un letto sicuro è vicino.',goal:'dormire per superare la notte',action:'sleep',args:{},expected:'notte superata senza esporsi ai mostri'}
   if(hostile&&Number(observation.health)>0&&Number(observation.health)<8)return{thought:'Pericolo: mob ostile vicino e salute bassa.',goal:'allontanarsi dal mob ostile',action:'escape_hazard',args:{},expected:'distanza di sicurezza'}
   if(Number(observation.food)<8&&food)return{thought:'Priorità survival: fame bassa.',goal:'mangiare per sopravvivere',action:'eat',args:{name:food.name},expected:'fame sopra la soglia'}
   if(Number(observation.health)>0&&Number(observation.health)<8&&food)return{thought:'Priorità survival: salute critica.',goal:'mangiare e cercare sicurezza',action:'eat',args:{name:food.name},expected:'salute stabilizzata'}
