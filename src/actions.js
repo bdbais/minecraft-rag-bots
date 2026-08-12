@@ -300,7 +300,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (typeof bot.fish !== 'function') throw new Error('pesca non disponibile nel client Minecraft')
       const rod = bot.inventory.items().find(i => i.name === 'fishing_rod')
       if (!rod) throw new Error('canna da pesca assente')
-      await bot.equip(rod, 'hand'); await bot.fish(); return 'pesca completata'
+      const before=inventoryTotal(bot,i=>/^(cod|salmon|tropical_fish|pufferfish)$/.test(i.name));await bot.equip(rod, 'hand'); await bot.fish(); await collectNearbyDrops(bot,20); const after=inventoryTotal(bot,i=>/^(cod|salmon|tropical_fish|pufferfish)$/.test(i.name));if(after<=before)throw new Error('pesca completata ma nessun pesce raccolto');return `pesca completata: ${after-before} pesci raccolti`
     }
     case 'navigate_boat': {
       if (typeof bot.placeEntity !== 'function' || typeof bot.mount !== 'function') throw new Error('navigazione in barca non disponibile nel client')
