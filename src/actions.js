@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -255,6 +255,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (!rod) throw new Error('canna da pesca assente')
       await bot.equip(rod, 'hand'); await bot.fish(); return 'pesca completata'
     }
+    case 'navigate_boat': {
+      if (typeof bot.placeEntity !== 'function' || typeof bot.mount !== 'function') throw new Error('navigazione in barca non disponibile nel client')
+      const boat = bot.inventory.items().find(i => /_boat$/.test(i.name))
+      if (!boat) throw new Error('barca assente')
+      const water = bot.findBlock({ matching: b => /^(water|kelp|seagrass)$/.test(b?.name || ''), maxDistance: 16 })
+      if (!water) throw new Error('nessuna acqua navigabile vicina')
+      await bot.equip(boat, 'hand'); const entity = await bot.placeEntity(water, new Vec3(0, 1, 0)); await bot.mount(entity)
+      bot.setControlState?.('forward', true); await sleep(Math.min(10000, Math.max(1000, Number(a.durationMs) || 4000))); bot.setControlState?.('forward', false); return 'barca posata e navigazione completata'
+    }
     case 'build_shelter': {
       const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
       if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
@@ -319,6 +328,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(nearWater&&!food&&has('fishing_rod')&&typeof bot.fish==='function')return{thought:'Sopravvivenza: acqua vicina e nessun cibo, pescare.',goal:'procurarsi cibo pescando',action:'fish',args:{},expected:'pesce raccolto'}
   if(nearWater&&!has('fishing_rod')&&(logs+planks)>=2)return{thought:'Esplorazione: acqua vicina, preparare una canna da pesca.',goal:'creare una canna da pesca',action:'craft',args:{name:'fishing_rod',count:1},expected:'canna da pesca nell inventario'}
   if(nearWater&&!has('boat')&&planks>=5)return{thought:'Esplorazione: acqua attraversabile, preparare una barca.',goal:'creare una barca per navigare',action:'craft',args:{name:'boat',count:1},expected:'barca nell inventario'}
+  if(nearWater&&has('boat')&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
   const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone'), sticks=inventoryTotal(bot,x=>x.name==='stick')
   if(table&&!has('furnace')&&cobble>=8)return{thought:'Tecnologia di base: trasformare la pietra in un forno.',goal:'creare un forno per fondere materiali e cucinare',action:'craft',args:{name:'furnace',count:1},expected:'forno nell inventario'}
   if(table&&!has('redstone_torch')&&redstone>=1&&sticks>=1)return{thought:'Difesa sperimentale: creare un componente redstone.',goal:'creare una torcia redstone per un meccanismo',action:'craft',args:{name:'redstone_torch',count:1},expected:'torcia redstone nell inventario'}
