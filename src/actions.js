@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -246,6 +246,16 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       for(const [dx,dz] of [[-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,-1],[2,-1],[-2,0],[2,0],[-2,1],[2,1],[-2,2],[-1,2],[0,2],[1,2],[2,2]]){const below=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!below||below.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(below,new Vec3(0,1,0));placed++}catch{}}
       if(placed<4)throw new Error('recinto non costruibile nello spazio disponibile');return `recinto costruito: ${placed} elementi`
     }
+    case 'build_redstone_defense': {
+      const torch=bot.inventory.items().find(i=>i.name==='redstone_torch'),trigger=bot.inventory.items().find(i=>/^(lever|stone_pressure_plate|oak_pressure_plate|spruce_pressure_plate|birch_pressure_plate)$/.test(i.name))
+      if(!torch||!trigger)throw new Error('servono una torcia redstone e un comando per la difesa')
+      const p=bot.entity.position.floored(),placements=[];await bot.equip(torch,'hand')
+      for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));placements.push({name:'redstone_torch',x:p.x+dx,y:p.y,z:p.z+dz});break}catch{}}
+      await bot.equip(trigger,'hand');for(const [dx,dz] of [[1,1],[-1,1],[1,-1],[-1,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));placements.push({name:trigger.name,x:p.x+dx,y:p.y,z:p.z+dz});break}catch{}}
+      if(placements.length<2)throw new Error('spazio non valido per costruire la difesa redstone')
+      await onShareCheckpoint?.({type:'danger',label:'Difesa redstone',x:p.x,y:p.y,z:p.z,note:`${trigger.name} e torcia posizionati`,source:'redstone'})
+      return `difesa redstone costruita con ${placements.length} componenti`
+    }
     case 'breed_animals': {
       const food=bot.inventory.items().find(i=>/wheat|carrot|potato|beetroot|seeds|melon_seeds|pumpkin_seeds/.test(i.name));if(!food)throw new Error('nessun alimento per allevamento nell’inventario')
       const species=String(a.species||'');const animals=Object.values(bot.entities).filter(e=>e.type==='mob'&&e.position?.distanceTo(bot.entity.position)<16&&(!species||String(e.name||'').includes(species))).slice(0,2);if(animals.length<2)throw new Error('servono due animali della stessa specie vicini')
@@ -374,6 +384,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&!has('redstone_torch')&&redstone>=1&&sticks>=1)return{thought:'Difesa sperimentale: creare un componente redstone.',goal:'creare una torcia redstone per un meccanismo',action:'craft',args:{name:'redstone_torch',count:1},expected:'torcia redstone nell inventario'}
   if(table&&has('redstone_torch')&&!has('lever')&&cobble>=1&&sticks>=1)return{thought:'Automazione: completare un comando manuale per il circuito.',goal:'creare una leva per azionare la difesa',action:'craft',args:{name:'lever',count:1},expected:'leva nell inventario'}
   if(table&&has('redstone_torch')&&!has('stone_pressure_plate')&&cobble>=2)return{thought:'Automazione: preparare un sensore di passaggio.',goal:'creare una piastra a pressione per la trappola',action:'craft',args:{name:'stone_pressure_plate',count:1},expected:'piastra a pressione nell inventario'}
+  const redstoneTrigger=items.some(x=>/^(lever|stone_pressure_plate|oak_pressure_plate|spruce_pressure_plate|birch_pressure_plate)$/.test(x.name))
+  if(table&&has('redstone_torch')&&redstoneTrigger&&sheltered)return{thought:'Difesa: componenti redstone pronti, costruire un punto di controllo vicino alla base.',goal:'posizionare una difesa redstone condivisibile',action:'build_redstone_defense',args:{},expected:'torcia e comando redstone posizionati'}
   const flint=inventoryTotal(bot,x=>x.name==='flint'), nearFluid=nearbyBlocks.some(x=>/^(lava|water)$/.test(typeof x==='string'?x:x?.name||'')), knownPortal=checkpoints.some(x=>x.type==='portal'||/portal|nether/i.test(x.label||''))
   if(table&&!has('bucket')&&iron>=3&&nearFluid)return{thought:'Gestione ambientale: fluido vicino, preparare un secchio senza sprecare ferro.',goal:'creare un secchio per controllare acqua o lava',action:'craft',args:{name:'bucket',count:1},expected:'secchio nell inventario'}
   if(table&&!has('flint_and_steel')&&iron>=1&&flint>=1&&(nearFluid||knownPortal))return{thought:'Esplorazione pianificata: preparare l’acciarino solo per un portale o una zona di fluidi.',goal:'creare un acciarino per un portale o una difesa',action:'craft',args:{name:'flint_and_steel',count:1},expected:'acciarino nell inventario'}
