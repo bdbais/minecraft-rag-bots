@@ -9,6 +9,12 @@ const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
 const inventoryTotal=(bot,filter=()=>true)=>(bot.inventory?.items?.()||[]).filter(filter).reduce((n,x)=>n+(x.count||0),0)
+const protectedBlock=/^(crafting_table|furnace|chest|barrel|bed|.*_bed|door|.*_door|farmland|.*_crop|water|lava)$/i
+export function simulateLavaDefense(bot, origin, {maxCells=24, minDistance=4}={}) {
+  const start=new Vec3(Math.floor(origin.x),Math.floor(origin.y),Math.floor(origin.z)), queue=[start], seen=new Set(), cells=[], unsafe=[]
+  while(queue.length&&cells.length<maxCells){const p=queue.shift(),key=`${p.x},${p.y},${p.z}`;if(seen.has(key))continue;seen.add(key);const b=bot.blockAt?.(p),name=b?.name||'';if(!b||protectedBlock.test(name)||(p!==start&&p.distanceTo(start)<minDistance)){unsafe.push({x:p.x,y:p.y,z:p.z,reason:protectedBlock.test(name)?name:'too_near'});continue}cells.push({x:p.x,y:p.y,z:p.z});for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push(new Vec3(p.x+dx,p.y,p.z+dz))}
+  return {safe:unsafe.length===0&&cells.length>0,cells,unsafe,reason:unsafe.length?'il flusso raggiunge una zona protetta o troppo vicina':'percorso del flusso confinato'}
+}
 async function compactInventory(bot){const slots=bot.inventory?.slots||[],byKey=new Map();for(let i=0;i<slots.length;i++){const item=slots[i];if(!item)continue;const key=`${item.type}:${item.metadata||0}`;const previous=byKey.get(key);if(previous!=null&&typeof bot.moveSlotItem==='function'){try{await bot.moveSlotItem(i,previous)}catch{}}else byKey.set(key,i)}}
 async function collectNearbyDrops(bot,maxDistance=16){
   await sleep(700)
