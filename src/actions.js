@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -207,6 +207,17 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name)
       if(!deposited)throw new Error('nessun oggetto utile da depositare nella chest')
       return `depositati ${deposited} oggetti in ${block.name}`
+    }
+    case 'read_sign': {
+      const sign=bot.findBlock({matching:b=>/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_sign$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||24,48)})
+      if(!sign)throw new Error('nessun cartello visibile')
+      await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));const data=bot.blockAt(sign.position),lines=(data?.signText||data?.text||[]).map?.(x=>typeof x==='string'?x:(x?.text||''))||[];const text=lines.join(' ').trim()||'cartello vuoto';return `letto cartello a ${sign.position.x},${sign.position.y},${sign.position.z}: ${text}`
+    }
+    case 'write_sign': {
+      const sign=bot.findBlock({matching:b=>/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_sign$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||24,48)})
+      if(!sign)throw new Error('nessun cartello esistente da aggiornare')
+      if(typeof bot.updateSign!=='function')throw new Error('questa versione del server non supporta la scrittura dei cartelli')
+      await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));const lines=Array.isArray(a.lines)?a.lines.map(String):String(a.text||'').split(/\n/);await bot.updateSign(sign,lines.slice(0,4));return `cartello aggiornato a ${sign.position.x},${sign.position.y},${sign.position.z}`
     }
     case 'craft': {
       return craftItem(bot, String(a.name || ''), a.count)

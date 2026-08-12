@@ -21,6 +21,7 @@ import { weatherSnapshot } from './weather.js'
 import { minecraftConnectionOptions } from './minecraft-auth.js'
 import { LifetimeStats } from './lifetime-stats.js'
 import { TeamCheckpoints, serverCheckpointFile } from './team-checkpoints.js'
+import { SocialMemory } from './social-memory.js'
 
 const { pathfinder, Movements } = pathfinderPackage
 export function startupSummary(history=[],requestedAt=null,ready=false){const measuredAt=Date.now(),recent=history.filter(x=>Number.isFinite(x.durationMs)&&x.durationMs>=0).slice(-10),durations=recent.map(x=>x.durationMs),averageMs=durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):null;return{samples:durations.length,averageMs,lastMs:durations.at(-1)??null,minMs:durations.length?Math.min(...durations):null,maxMs:durations.length?Math.max(...durations):null,currentWaitMs:requestedAt&&!ready?Math.max(0,measuredAt-requestedAt):null,measuredAt,recent}}
@@ -33,7 +34,8 @@ export class BotManager extends EventEmitter {
     if (!e) return null
     let game = null
     try { if (e.bot?.entity) game = observe(e.bot,{visionRadius:e.config.visionRadius}) } catch {}
-    return { id, name: e.config.name, gender: e.config.gender || 'neutral', runtimeModel:e.runtimeModel||null, minecraftVersion: e.bot?.version || e.config.version || '1.21.4', connection: e.connection, onlineSince:e.onlineSince||null, startup:startupSummary(e.startupHistory,e.connectRequestedAt,e.connection==='online'), ready:!!e.agent, startRequested:!!e.startRequested, running: !!e.agent?.running, busy: !!e.agent?.busy, phase: e.agent?.phase || (e.startRequested?'bootstrap':'idle'), queuedPrompts: (e.agent?.instructions.length || 0)+(e.pendingInstructions?.length||0), inference: this.scheduler.stats(), performance:e.performance?.summary(Object.keys(e.biography?.milestones||{}).length), lifetime:e.lifetime?.snapshot()||null, worldKnowledge:e.worldMap?.knowledge(e.bot?.entity?.position,e.bot?.game?.dimension,30)||null, teamCheckpoints:e.teamStore?.list(30)||[], steps: e.agent?.steps || 0, successes: e.agent?.successes || 0, failures: e.agent?.failures || 0, memories: e.memory?.items.length || 0, learnedLessons: e.learner?.totalLessons || 0, skills: e.learner?.summary().slice(0, 8) || [], chests:e.chestMemory?.list() || [], biographyCount: e.biography?.events.length || 0, biography: e.biography?.recent(30) || [], teammates: this.teamContext(id), game, lastGoal: e.lastGoal || '', logs: e.logs.slice(-100) }
+    const phase=e.agent?.phase || (e.startRequested?'bootstrap':'idle'),busy=!!e.agent?.busy, progress=phase==='bootstrap'?35:phase==='planning'?60:busy?80:e.agent?.running?100:0
+    return { id, name: e.config.name, gender: e.config.gender || 'neutral', runtimeModel:e.runtimeModel||null, minecraftVersion: e.bot?.version || e.config.version || '1.21.4', connection: e.connection, onlineSince:e.onlineSince||null, startup:startupSummary(e.startupHistory,e.connectRequestedAt,e.connection==='online'), ready:!!e.agent, startRequested:!!e.startRequested, running: !!e.agent?.running, busy, phase, activityProgress:progress, activityLabel:phase==='bootstrap'?'Preparazione AI':phase==='planning'?'Pianificazione':busy?'Esecuzione azione':e.agent?.running?'In attesa del prossimo ciclo':'In pausa', queuedPrompts: (e.agent?.instructions.length || 0)+(e.pendingInstructions?.length||0), inference: this.scheduler.stats(), performance:e.performance?.summary(Object.keys(e.biography?.milestones||{}).length), lifetime:e.lifetime?.snapshot()||null, worldKnowledge:e.worldMap?.knowledge(e.bot?.entity?.position,e.bot?.game?.dimension,30)||null, teamCheckpoints:e.teamStore?.list(30)||[], steps: e.agent?.steps || 0, successes: e.agent?.successes || 0, failures: e.agent?.failures || 0, memories: e.memory?.items.length || 0, learnedLessons: e.learner?.totalLessons || 0, skills: e.learner?.summary().slice(0, 8) || [], chests:e.chestMemory?.list() || [], biographyCount: e.biography?.events.length || 0, biography: e.biography?.recent(30) || [], teammates: this.teamContext(id), game, lastGoal: e.lastGoal || '', logs: e.logs.slice(-100) }
   }
   snapshots() { return [...this.entries.keys()].map(id => this.snapshot(id)) }
   teamContext(forId) {
@@ -82,6 +84,7 @@ export class BotManager extends EventEmitter {
         const memoryTag = `${config.aiProvider || 'local'}-${config.aiProvider === 'cloud' ? config.cloudEmbedModel : config.embedModel}`.replace(/[^a-z0-9_-]/gi, '_')
         const memory = new MemoryStore(path.join(this.dataDir, legacyLocal ? `memory-${id}.json` : `memory-${id}-${memoryTag}.json`), ollama)
         await memory.load(); entry.memory = memory
+        const social=new SocialMemory(path.join(this.dataDir,`social-${id}.json`));await social.load();entry.social=social
         const learner = new LearningEngine(path.join(this.dataDir, `skills-${id}.json`), ollama, memory)
         await learner.load(); entry.learner = learner
         const biography = new Biography(path.join(this.dataDir, `biography-${id}.json`), { name: config.name, username: bot.username, gender: config.gender || 'neutral' },{weather:()=>weatherSnapshot(bot)})
@@ -118,6 +121,8 @@ export class BotManager extends EventEmitter {
       if (selfNames.has(sender) || config.listenChat === false) return
       const text = String(message).trim()
       if (!text || text.startsWith('!status')) return
+      entry.social?.remember(username,{memory:text,trust:0.01})
+      entry.social?.save().catch(()=>{})
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
       if (/^(ciao|salve|buongiorno|buonasera|hello|hi|hey)\b/i.test(text) && !teammate) {
@@ -131,7 +136,7 @@ export class BotManager extends EventEmitter {
         this.log(id, 'prompt', `${username} dalla chat: ${text}`)
       } else this.log(id, 'info', `Compagno ${username}: ${text}`)
     })
-    bot.on('death', () => { this.log(id, 'error', 'Il bot è morto'); if (entry.agent) entry.agent.failures++; entry.biography?.add('death', 'La caduta', `${config.name} è morto, ma la sua storia e le sue lezioni continueranno dopo la rinascita.`).catch(()=>{}) })
+    bot.on('death', () => { const memorial={botId:id,name:config.name,at:new Date().toISOString(),position:bot.entity?.position?{x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z)}:null,dimension:bot.game?.dimension||'unknown',hardcore:!!bot.game?.hardcore};fs.appendFile(path.join(this.dataDir,'memorials.jsonl'),`${JSON.stringify(memorial)}\n`).catch(()=>{});this.log(id,'error',`Il bot è morto${memorial.position?` a ${memorial.position.x},${memorial.position.y},${memorial.position.z}`:''}`);if (entry.agent) entry.agent.failures++; entry.biography?.add('death', 'La caduta', `${config.name} è morto, ma la sua storia e le sue lezioni continueranno dopo la rinascita.`,{memorial}).catch(()=>{}) })
     bot.on('kicked', reason => { entry.connection = 'kicked'; this.log(id, 'error', `Espulso: ${String(reason)}`) })
     bot.on('end', reason => { clearInterval(entry.chestTimer);clearInterval(entry.mapTimer);clearInterval(entry.lifetimeTimer);entry.lifetime?.save().catch(()=>{});entry.onlineSince=null; if (!this.entries.has(id) || entry.closing) return; entry.connection = 'offline'; entry.agent?.stop(); this.log(id, 'info', `Disconnesso: ${reason}`); entry.biography?.endSession(String(reason)).catch(()=>{}) })
     bot.on('error', error => this.log(id, 'error', error.message))
