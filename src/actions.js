@@ -286,14 +286,14 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (!target) throw new Error('no allowed nearby target')
       const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2))
-      onAttackTarget?.(target); bot.attack(target); return `attacked ${target.name || target.username}`
+      onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `attacked ${target.name || target.username}`
     }
     case 'hunt_nearest': {
       const edible = /cow|pig|chicken|sheep|rabbit|cod|salmon/i
       const target = bot.nearestEntity(e => e.type === 'mob' && edible.test(e.name || '') && e.position.distanceTo(bot.entity.position) < 16)
       if (!target) throw new Error('nessun animale commestibile vicino')
       const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)
-      await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target); bot.attack(target); return `cacciato ${target.name || 'animale'}`
+      await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
     default: throw new Error(`unsupported action ${decision.action}`)
   }

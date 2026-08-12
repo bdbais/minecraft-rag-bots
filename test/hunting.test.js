@@ -14,3 +14,12 @@ test('does not hunt when two animals can be used for breeding', () => {
   const decision = autonomousProgressionDecision(bot, { health: 20, food: 20, nearbyEntities: [{ type: 'mob', name: 'cow' }, { type: 'mob', name: 'cow' }], nearbyBlocks: [] })
   assert.notEqual(decision?.action, 'hunt_nearest')
 })
+
+test('hunt action collects nearby drops after the attack', async () => {
+  const calls = []
+  const target = { type: 'mob', name: 'cow', position: { distanceTo: () => 2 } }
+  const bot = { entity: { position: { distanceTo: () => 2 } }, inventory: { items: () => [{ name: 'stone_sword', count: 1 }] }, entities: { item: { name: 'item', position: { distanceTo: () => 1, x: 1, y: 64, z: 1 } } }, nearestEntity: () => target, pathfinder: { setMovements: () => {}, goto: async () => {} }, attack: () => calls.push('attack') }
+  const { execute } = await import('../src/actions.js')
+  await execute(bot, { action: 'hunt_nearest', args: {} })
+  assert.deepEqual(calls, ['attack'])
+})
