@@ -8,6 +8,12 @@ test('planner smelts raw iron when a furnace and fuel are available', () => {
   assert.equal(decision.action,'smelt');assert.equal(decision.args.name,'raw_iron')
 })
 
+test('planner uses a crafted furnace from inventory on the next cycle', () => {
+  const bot={inventory:{items:()=>[{name:'furnace',count:1},{name:'raw_iron',count:2},{name:'coal',count:2}]},findBlock:()=>null}
+  const decision=autonomousProgressionDecision(bot,{nearbyBlocks:[],nearbyEntities:[],equipment:[]},[])
+  assert.equal(decision.action,'smelt')
+})
+
 test('smelt opens a nearby furnace and loads input and fuel', async () => {
   const calls=[]
   const bot={entity:{position:{distanceTo:()=>1}},inventory:{items:()=>[{name:'raw_iron',type:1,count:2},{name:'coal',type:2,count:2}]},findBlock:()=>({name:'furnace',position:{x:0,y:64,z:0}}),pathfinder:{goto:async()=>{}},openFurnace:async()=>({putFuel:async(...x)=>calls.push(['fuel',...x]),putInput:async(...x)=>calls.push(['input',...x]),close:()=>{}})}
