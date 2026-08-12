@@ -140,6 +140,8 @@ function toggleAIFields() {
 }
 $('#aiProvider').onchange = toggleAIFields
 $('#newBot').onclick = () => openEditor(); $('#editBot').onclick = () => openEditor(configs.find(x => x.id === selected)); $('#closeDialog').onclick = $('#cancelDialog').onclick = () => $('#editor').close()
+if(!$('#cloneBot')){const button=document.createElement('button');button.id='cloneBot';button.textContent='Clona bot';button.title='Crea un nuovo bot copiando la configurazione senza memoria privata o credenziali';$('#editBot')?.after(button)}
+$('#cloneBot').onclick=()=>safe(async()=>{const source=configs.find(x=>x.id===selected);if(!source)throw new Error('Seleziona prima un bot da clonare');const clone={...source,id:crypto.randomUUID(),name:`${source.name} (copia)`,username:`${source.username||source.name}_copy`.slice(0,16),autoStart:false};delete clone.cloudApiKey;delete clone.hasCloudApiKey;openEditor(clone);toast('Clonazione pronta: controlla identità e configurazione, poi salva')})
 async function saveBotForm(form) {
   const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, listenChat: form.listenChat.checked, allowPvp: false }
   for(const name of ['strength','dexterity','intelligence','vitality','willpower','perception']) cfg[name]=Number(raw[name])||10
