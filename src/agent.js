@@ -84,7 +84,16 @@ export class Agent {
       this.noProgressSteps=0;this.emit('log',{level:'info',message:`Watchdog: nessun progresso da 3 cicli, avvio recupero ${decision.action}`})
     }
     if (generation !== this.generation) throw new Error('INTERRUPTED')
-    if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop'].includes(decision.action)){const blocked=decision.action;decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}
+    if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop','escape_hazard','build_shelter'].includes(decision.action)){const blocked=decision.action;decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}
+    const inventory=this.bot.inventory?.items?.()||[]
+    if(decision.action==='build_shelter'&&!inventory.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)&&x.count>0)){
+      decision={thought:'Il riparo non è ancora possibile: servono blocchi da costruzione.',goal:'raccogliere materiali prima di costruire il riparo',action:'collect_wood',args:{count:4},expected:'blocchi utili nell inventario',recoveryFor:'build_shelter'}
+      this.emit('log',{level:'info',message:'Recovery: build_shelter senza materiali, raccolgo prima risorse'})
+    }
+    if(decision.action==='escape_hazard'&&(this.actionFailures.escape_hazard||0)>=2){
+      const pickaxe=inventory.find(x=>/_pickaxe$/.test(x.name)); decision=pickaxe?{thought:'La fuga ambientale fallisce: cambiare piano e scavare un passaggio sicuro.',goal:'scavare una via alternativa lontano dal fluido',action:'dig_escape',args:{},expected:'passaggio libero dalla zona pericolosa',recoveryFor:'escape_hazard'}:{thought:'La fuga ambientale fallisce senza attrezzi: esplorare un percorso alternativo.',goal:'allontanarsi dalla zona pericolosa con un percorso diverso',action:'explore',args:{radius:16},expected:'nuova posizione lontana dal pericolo',recoveryFor:'escape_hazard'}
+      this.emit('log',{level:'info',message:`Recovery: escape_hazard fallita, cambio strategia in ${decision.action}`})
+    }
     this.steps++; this.emit('decision', { decision, state, manual })
     // Il learner deve ricevere lo snapshot strutturato, non la stringa usata
     // soltanto per il diario: stateDelta altrimenti non vede inventario e posizione.
