@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'craft', 'equip', 'eat', 'build_shelter', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -78,11 +78,21 @@ export function basicProgressionDecision(bot,instruction=''){const text=String(i
   if(/impugna|equipaggia|tieni|usa|equip/.test(text)){const requested=text.match(/(?:impugna|equipaggia|tieni|usa|equip)\s+(?:il|la|un|una)?\s*([a-z0-9_ -]+)/)?.[1]?.trim();const item=items.find(x=>requested&&(`${x.name} ${x.displayName||''}`).toLowerCase().includes(requested))||items.find(x=>/pickaxe|axe|sword|shovel|hoe|torch|shel|food|bread/.test(x.name));if(item)return{thought:'Ordine esplicito: equipaggiamento deterministico.',goal:`impugnare ${item.name}`,action:'equip',args:{name:item.name,destination:'hand'},expected:`${item.name} in mano`}}
   const requested=/banco|workbench|crafting table|chest|cassa|baule|contenitore|asci|axe|piccon|pickaxe/.test(text);if(!requested)return null;if(!table){if(wood<1&&planks<4)return{thought:'Progressione base deterministica: prima serve legno reale.',goal:'raccogliere legno per il banco da lavoro',action:'collect_wood',args:{count:4},expected:'ottenere almeno un tronco'};return{thought:'Progressione base deterministica: materiali disponibili per il banco.',goal:'creare il banco da lavoro',action:'craft',args:{name:'crafting_table',count:1},expected:'banco da lavoro nell inventario'}}if(/asci|axe/.test(text)&&!items.some(x=>/_axe$/.test(x.name)))return{thought:'Progressione base deterministica.',goal:'creare un ascia',action:'craft',args:{name:'axe',count:1},expected:'ascia nell inventario'};if(/piccon|pickaxe/.test(text)&&!items.some(x=>/_pickaxe$/.test(x.name)))return{thought:'Progressione base deterministica.',goal:'creare un piccone',action:'craft',args:{name:'pickaxe',count:1},expected:'piccone nell inventario'};if(/chest|cassa|baule|contenitore/.test(text)&&!has('chest'))return{thought:'Progressione base deterministica.',goal:'creare una chest',action:'craft',args:{name:'chest',count:1},expected:'chest nell inventario'};return null}
 
-export async function execute(bot, decision, { allowPvp = false, onStorageSeen, onAttackTarget, onShareCheckpoint } = {}) {
+export async function execute(bot, decision, { allowPvp = false, onStorageSeen, onAttackTarget, onShareCheckpoint, config } = {}) {
   decision=normalizeDecision(bot,decision);const a = decision.args || {}
   switch (decision.action) {
     case 'wait': await sleep(Math.min(Number(a.ms) || 1000, 10000)); return 'waited'
-    case 'chat': bot.chat(String(a.message || '').slice(0, 200)); return 'sent chat'
+    case 'chat': {
+      // Il modello a volte restituisce "NomeBot: testo" come se stesse
+      // scrivendo un transcript. In Minecraft il nome viene già aggiunto dal
+      // server: rimuoverlo evita messaggi autoreferenziali e conversazioni
+      // apparentemente con se stessi.
+      let message=String(a.message||'').replace(/\s+/g,' ').trim()
+      const names=[bot.username,config?.name].filter(Boolean).map(x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')
+      if(names)message=message.replace(new RegExp(`^(?:${names})\\s*[:：-]\\s*`,'i'),'')
+      if(!message)return 'chat vuota ignorata'
+      bot.chat(message.slice(0,200)); return 'sent chat'
+    }
     case 'stop': return 'agent requested stop'
     case 'unstuck': {
       bot.pathfinder?.setGoal(null);bot.clearControlStates?.()
@@ -184,6 +194,20 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const container=await bot.openContainer(block);const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name)
       return `ispezionato ${block.name} a ${block.position.x},${block.position.y},${block.position.z}: ${contents.map(x=>`${x.name} x${x.count}`).join(', ')||'vuoto'}`
     }
+    case 'store_items': {
+      const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||32,48)})
+      if(!block)throw new Error('nessuna chest o barrel raggiungibile per depositare')
+      await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,3))
+      const container=await bot.openContainer(block);let deposited=0
+      const keep=name=>/(_axe|_pickaxe|_shovel|_sword|_hoe|shield|bow|crossbow|helmet|chestplate|leggings|boots|food|bread|apple|bucket|torch|crafting_table)$/.test(name)
+      for(const item of [...(bot.inventory.items?.()||[])]){
+        if(/^(chest|trapped_chest|barrel)$/.test(item.name)||keep(item.name))continue
+        try{await container.deposit(item.type,item.metadata,item.count);deposited+=item.count}catch{}
+      }
+      const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name)
+      if(!deposited)throw new Error('nessun oggetto utile da depositare nella chest')
+      return `depositati ${deposited} oggetti in ${block.name}`
+    }
     case 'craft': {
       return craftItem(bot, String(a.name || ''), a.count)
     }
@@ -233,6 +257,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
     return{thought:'Creative: esplorare una nuova area e aggiornare la mappa.',goal:'esplorare il mondo',action:'explore',args:{radius:32},expected:'nuova area esplorata'}
   }
   if(nearbyEntities.some(x=>x?.name==='item'))return{thought:'Raccolta automatica: oggetto lasciato vicino.',goal:'raccogliere gli oggetti caduti',action:'collect_drops',args:{maxDistance:24},expected:'oggetti nell inventario'}
+  if(items.length>=20&&nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Inventario quasi pieno: depositare i materiali non essenziali.',goal:'organizzare le risorse nella chest',action:'store_items',args:{maxDistance:32},expected:'materiali depositati e inventario ottimizzato'}
   if(nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Memoria automatica: ispezionare il contenitore vicino.',goal:'leggere il contenuto della chest',action:'inspect_storage',args:{},expected:'contenuto registrato nella memoria'}
   if(Number(observation.health)>0&&Number(observation.health)<6&&!food)return{thought:'Emergenza: salute critica senza cibo.',goal:'raggiungere una posizione sicura e chiedere aiuto',action:'escape_hazard',args:{},expected:'uscire dal pericolo senza costruire'}
   if(Number(observation.food)<8&&food)return{thought:'Priorità survival: fame bassa.',goal:'mangiare per sopravvivere',action:'eat',args:{name:food.name},expected:'fame sopra la soglia'}

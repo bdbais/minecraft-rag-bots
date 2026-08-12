@@ -110,7 +110,12 @@ export class BotManager extends EventEmitter {
     bot.on('heldItemChanged',()=>this.publish(id,true))
     bot.on('entityDead', entity => entry.lifetime?.noteDeath(entity).then(killed=>{if(killed){this.log(id,'success',`Animale abbattuto: ${entity.name||'sconosciuto'}`);this.publish(id)}}).catch(()=>{}))
     bot.on('chat', (username, message) => {
-      if (username === bot.username || config.listenChat === false) return
+      const sender=String(username||'').trim().toLowerCase()
+      const selfNames=new Set([bot.username,config.username,config.name].filter(Boolean).map(x=>String(x).trim().toLowerCase()))
+      // Alcuni server inoltrano i messaggi del bot con il nome configurato
+      // invece dell'username Mineflayer: in entrambi i casi non va riattivato
+      // il proprio agente né va avviato un dialogo con se stesso.
+      if (selfNames.has(sender) || config.listenChat === false) return
       const text = String(message).trim()
       if (!text || text.startsWith('!status')) return
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
