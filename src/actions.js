@@ -214,8 +214,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       return `ispezionato ${block.name} a ${block.position.x},${block.position.y},${block.position.z}: ${contents.map(x=>`${x.name} x${x.count}`).join(', ')||'vuoto'}`
     }
     case 'store_items': {
-      const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||32,48)})
-      if(!block)throw new Error('nessuna chest o barrel raggiungibile per depositare')
+      let block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||32,48)})
+      if(!block){
+        let chest=bot.inventory.items().find(i=>i.name==='chest')
+        if(!chest){await craftItem(bot,'chest',1,0);chest=bot.inventory.items().find(i=>i.name==='chest')}
+        if(!chest)throw new Error('nessuna chest disponibile e impossibile craftarla')
+        await bot.equip(chest,'hand');const p=bot.entity.position.floored()
+        for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),air=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!air||!/^(air|cave_air|void_air)$/.test(air.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));block=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(block)break}catch{}}
+      }
+      if(!block)throw new Error('nessun punto sicuro per posizionare una chest')
       await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,3))
       const container=await bot.openContainer(block);let deposited=0
       const keep=name=>/(_axe|_pickaxe|_shovel|_sword|_hoe|shield|bow|crossbow|helmet|chestplate|leggings|boots|food|bread|apple|bucket|torch|crafting_table)$/.test(name)
@@ -223,7 +230,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         if(/^(chest|trapped_chest|barrel)$/.test(item.name)||keep(item.name))continue
         try{await container.deposit(item.type,item.metadata,item.count);deposited+=item.count}catch{}
       }
-      const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name)
+      const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name);await onShareCheckpoint?.({type:'chest',label:'Deposito materiali',x:block.position.x,y:block.position.y,z:block.position.z,note:`${deposited} oggetti depositati`,source:'storage'})
       if(!deposited)throw new Error('nessun oggetto utile da depositare nella chest')
       return `depositati ${deposited} oggetti in ${block.name}`
     }
