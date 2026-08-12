@@ -22,6 +22,7 @@ import { minecraftConnectionOptions } from './minecraft-auth.js'
 import { LifetimeStats } from './lifetime-stats.js'
 import { TeamCheckpoints, serverCheckpointFile } from './team-checkpoints.js'
 import { SocialMemory } from './social-memory.js'
+import { LineageStore } from './lineage.js'
 
 const { pathfinder, Movements } = pathfinderPackage
 export function startupSummary(history=[],requestedAt=null,ready=false){const measuredAt=Date.now(),recent=history.filter(x=>Number.isFinite(x.durationMs)&&x.durationMs>=0).slice(-10),durations=recent.map(x=>x.durationMs),averageMs=durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length):null;return{samples:durations.length,averageMs,lastMs:durations.at(-1)??null,minMs:durations.length?Math.min(...durations):null,maxMs:durations.length?Math.max(...durations):null,currentWaitMs:requestedAt&&!ready?Math.max(0,measuredAt-requestedAt):null,measuredAt,recent}}
@@ -85,6 +86,7 @@ export class BotManager extends EventEmitter {
         const memory = new MemoryStore(path.join(this.dataDir, legacyLocal ? `memory-${id}.json` : `memory-${id}-${memoryTag}.json`), ollama)
         await memory.load(); entry.memory = memory
         const social=new SocialMemory(path.join(this.dataDir,`social-${id}.json`));await social.load();entry.social=social
+        const lineage=new LineageStore(path.join(this.dataDir,`lineage-${id}.json`));await lineage.load();entry.lineage=lineage
         const learner = new LearningEngine(path.join(this.dataDir, `skills-${id}.json`), ollama, memory)
         await learner.load(); entry.learner = learner
         const biography = new Biography(path.join(this.dataDir, `biography-${id}.json`), { name: config.name, username: bot.username, gender: config.gender || 'neutral' },{weather:()=>weatherSnapshot(bot)})
@@ -101,6 +103,7 @@ export class BotManager extends EventEmitter {
           decision: ({ decision, manual }) => { entry.lastGoal = decision.goal; this.log(id, 'info', `${manual ? '[prompt] ' : ''}${decision.action}: ${JSON.stringify(decision.args)}`); biography.add('decision', 'Una nuova intenzione', `${config.name} ha deciso di ${decision.goal}, scegliendo l'azione ${decision.action}.${manual ? ` L'istruzione ricevuta era: “${manual}”.` : ''}`, { decision }).catch(()=>{}) },
           result: ({ success, result, learned, timing }) => { performance.record({success,...timing}).then(()=>this.publish(id)).catch(()=>{});this.log(id, success ? 'success' : 'error', `${String(result)}${learned ? ` · Lezione: ${learned.lesson}` : ''}`); biography.add(success ? 'success' : 'failure', success ? 'Un passo avanti' : 'Una difficoltà', `${config.name} ${success ? 'è riuscito nel suo intento' : 'ha incontrato un ostacolo'}: ${result}.${learned ? ` Ha imparato: ${learned.lesson}` : ''}`, { learned }).then(() => biography.observeMilestones(learned?.delta)).catch(()=>{}) }
         }, learner)
+        entry.agent.config.socialContext=()=>entry.social?{people:entry.social.people,goals:entry.social.openGoals()}:{}
         entry.agent.config.onObservation=state=>worldMap.rememberTargets(state.visibleTargets,state.dimension)
         entry.agent.config.worldKnowledge=()=>worldMap.knowledge(bot.entity?.position,bot.game?.dimension,80)
         for (const instruction of entry.pendingInstructions.splice(0)) entry.agent.instruct(instruction)
