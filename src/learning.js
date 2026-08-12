@@ -21,7 +21,7 @@ export function stateDelta(before, after) {
 }
 
 export class LearningEngine {
-  constructor(file, ollama, memory) { this.file = file; this.ollama = ollama; this.memory = memory; this.skills = {}; this.totalLessons = 0 }
+  constructor(file, ollama, memory, shared = null) { this.file = file; this.ollama = ollama; this.memory = memory; this.shared = shared; this.skills = {}; this.totalLessons = 0 }
   async load() { try { const data = JSON.parse(await fs.readFile(this.file, 'utf8')); this.skills = data.skills || {}; this.totalLessons = data.totalLessons || 0 } catch (e) { if (e.code !== 'ENOENT') throw e } }
   async save() { await fs.mkdir(path.dirname(this.file), { recursive: true }); await fs.writeFile(this.file, JSON.stringify({ totalLessons: this.totalLessons, skills: this.skills }, null, 2)) }
   summary() {
@@ -53,7 +53,7 @@ export class LearningEngine {
     if (reflection.achieved) stat.successes++; else stat.failures++
     stat.lastResult = String(result); if (reflection.reusable && reflection.achieved) stat.bestLesson = reflection.lesson
     const text = `LEARNED EPISODE. Human instruction: ${manual || 'none'}. Goal: ${decision.goal}. Action: ${key} ${JSON.stringify(decision.args)}. Observed change: ${JSON.stringify(delta)}. Outcome: ${reflection.achieved ? 'SUCCESS' : 'FAILURE'}. Lesson: ${reflection.lesson}. Next strategy: ${reflection.nextStrategy}. Confidence: ${reflection.confidence}.`
-    this.totalLessons++; if(reflection.reusable && Number(reflection.confidence)>=0.7) await this.memory.add(text, { type: 'learned_episode', success: reflection.achieved, action: key, confidence: reflection.confidence, manualInstruction: manual || null }); await this.save()
+    this.totalLessons++; if(reflection.reusable && Number(reflection.confidence)>=0.7) { await this.memory.add(text, { type: 'learned_episode', success: reflection.achieved, action: key, confidence: reflection.confidence, manualInstruction: manual || null }); await this.shared?.record({text,action:key,confidence:reflection.confidence,success:reflection.achieved,source:step}) } await this.save()
     return { ...reflection, delta }
   }
 }

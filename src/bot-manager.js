@@ -22,6 +22,7 @@ import { minecraftConnectionOptions } from './minecraft-auth.js'
 import { LifetimeStats } from './lifetime-stats.js'
 import { TeamCheckpoints, serverCheckpointFile } from './team-checkpoints.js'
 import { SocialMemory } from './social-memory.js'
+import { SharedLearningLibrary } from './shared-learning.js'
 import { LineageStore } from './lineage.js'
 
 const { pathfinder, Movements } = pathfinderPackage
@@ -88,7 +89,9 @@ export class BotManager extends EventEmitter {
         await memory.load(); entry.memory = memory
         const social=new SocialMemory(path.join(this.dataDir,`social-${id}.json`));await social.load();entry.social=social
         const lineage=new LineageStore(path.join(this.dataDir,`lineage-${id}.json`));await lineage.load();entry.lineage=lineage
-        const learner = new LearningEngine(path.join(this.dataDir, `skills-${id}.json`), ollama, memory)
+        if(!this.sharedLearning){this.sharedLearning=new SharedLearningLibrary(path.join(this.dataDir,'shared-skills.json'));await this.sharedLearning.load()}
+        for(const lesson of this.sharedLearning.best(40)) if(!memory.items.some(x=>x.text===lesson.text)) await memory.add(`SHARED VERIFIED SKILL (${lesson.action}, ${Math.round(lesson.confidence*100)}% confidence): ${lesson.text}`,{type:'shared_skill',action:lesson.action,confidence:lesson.confidence})
+        const learner = new LearningEngine(path.join(this.dataDir, `skills-${id}.json`), ollama, memory, this.sharedLearning)
         await learner.load(); entry.learner = learner
         const biography = new Biography(path.join(this.dataDir, `biography-${id}.json`), { name: config.name, username: bot.username, gender: config.gender || 'neutral' },{weather:()=>weatherSnapshot(bot)})
         await biography.load(); entry.biography = biography
