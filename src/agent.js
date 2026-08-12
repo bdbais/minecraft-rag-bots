@@ -4,6 +4,7 @@ import { observe } from './observe.js'
 import { personalityPrompt } from './personalities.js'
 import { psychProfile } from './traits.js'
 import { campaignState } from './campaign.js'
+import { exploreStrategies } from './strategy-search.js'
 
 const baseSystem = config => `You control a Minecraft bot. Adapt to the detected game mode: survival requires hunger, health, resources and crafting; creative permits building and unlimited resources but still requires deliberate construction; adventure generally forbids breaking blocks, so interact, explore and collaborate; spectator must not attempt physical actions and should observe/report only. Work incrementally toward defeating the Ender Dragon when the mode permits it.
 Identity gender: ${config.gender || 'neutral'}. Use identity-consistent language when referring to yourself, without stereotypes.
@@ -16,7 +17,7 @@ This is a cooperative campaign with one shared final objective: defeat the Ender
 Crafting names: use crafting_table (not workbench), oak_planks/birch_planks/etc. (not plank), wooden_axe/stone_axe, color_bed such as white_bed, and chest. Generic plank/planks, workbench, axe, bed and container aliases are accepted and resolved from inventory. The craft action creates intermediate ingredients and, when required, creates, places and uses a crafting table automatically. Return schema-compliant JSON only.`
 
 export class Agent {
-  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map();this.helpRequests=new Map() }
+  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map();this.helpRequests=new Map();this.strategyTrials={} }
   instruct(text) { if (String(text).trim()) { this.instructions.push(String(text).trim()); this.interrupt('Nuova istruzione manuale') } }
   emit(type, payload = {}) { this.events[type]?.(payload) }
   async cancelAction() {
@@ -85,7 +86,7 @@ export class Agent {
       this.noProgressSteps=0;this.emit('log',{level:'info',message:`Watchdog: nessun progresso da 3 cicli, avvio recupero ${decision.action}`})
     }
     if (generation !== this.generation) throw new Error('INTERRUPTED')
-    if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop','escape_hazard','build_shelter'].includes(decision.action)){const blocked=decision.action;decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}
+    if((this.actionFailures[decision.action]||0)>=2&&!['unstuck','wait','chat','stop','escape_hazard','build_shelter'].includes(decision.action)){const blocked=decision.action,alternatives=exploreStrategies(state,this.actionFailures),trial=this.strategyTrials[blocked]||0;if(trial<3){const candidate=alternatives[trial%alternatives.length];this.strategyTrials[blocked]=trial+1;decision={...candidate,thought:`Ricerca fuzzy dopo fallimenti di ${blocked}: provo una combinazione alternativa.`,expected:'un cambiamento osservabile',recoveryFor:blocked};this.emit('log',{level:'info',message:`Fuzzy recovery: ${blocked} fallita, provo ${candidate.action} (tentativo ${trial+1}/3)`})}else{decision={...decision,thought:`Recupero automatico dopo fallimenti ripetuti di ${blocked}.`,action:'unstuck',args:{},expected:'Cambiare posizione e liberare il movimento',recoveryFor:blocked};this.emit('log',{level:'info',message:`Recovery: ${blocked} è fallita ripetutamente, eseguo una manovra di sblocco`})}}
     const inventory=this.bot.inventory?.items?.()||[]
     if(decision.action==='build_shelter'&&!inventory.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)&&x.count>0)){
       decision={thought:'Il riparo non è ancora possibile: servono blocchi da costruzione.',goal:'raccogliere materiali prima di costruire il riparo',action:'collect_wood',args:{count:4},expected:'blocchi utili nell inventario',recoveryFor:'build_shelter'}
