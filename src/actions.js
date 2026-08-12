@@ -214,10 +214,11 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));const data=bot.blockAt(sign.position),lines=(data?.signText||data?.text||[]).map?.(x=>typeof x==='string'?x:(x?.text||''))||[];const text=lines.join(' ').trim()||'cartello vuoto';return `letto cartello a ${sign.position.x},${sign.position.y},${sign.position.z}: ${text}`
     }
     case 'write_sign': {
-      const sign=bot.findBlock({matching:b=>/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_sign$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||24,48)})
-      if(!sign)throw new Error('nessun cartello esistente da aggiornare')
       if(typeof bot.updateSign!=='function')throw new Error('questa versione del server non supporta la scrittura dei cartelli')
-      await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));const lines=Array.isArray(a.lines)?a.lines.map(String):String(a.text||'').split(/\n/);await bot.updateSign(sign,lines.slice(0,4));return `cartello aggiornato a ${sign.position.x},${sign.position.y},${sign.position.z}`
+      let sign=bot.findBlock({matching:b=>/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_sign$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||24,48)})
+      const lines=(Array.isArray(a.lines)?a.lines.map(String):String(a.text||'').split(/\n/)).slice(0,4)
+      if(!sign){let item=bot.inventory.items().find(i=>/_sign$/.test(i.name));if(!item){try{await craftItem(bot,'sign',1,0);item=bot.inventory.items().find(i=>/_sign$/.test(i.name))}catch{}}if(!item)throw new Error('nessun cartello disponibile e impossibile craftarlo');const p=bot.entity.position.floored();await bot.equip(item,'hand');for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),air=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!air||!/^(air|cave_air|void_air)$/.test(air.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));sign=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(sign)break}catch{}}}
+      if(!sign)throw new Error('nessun punto sicuro per posizionare il cartello');await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));await bot.updateSign(sign,lines);return `cartello aggiornato a ${sign.position.x},${sign.position.y},${sign.position.z}`
     }
     case 'build_pen': {
       const material=bot.inventory.items().find(i=>/(_fence|cobblestone|stone|dirt|planks)$/.test(i.name)&&i.count>=8)
