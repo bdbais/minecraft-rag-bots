@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -258,6 +258,17 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'craft': {
       return craftItem(bot, String(a.name || ''), a.count)
     }
+    case 'smelt': {
+      if (typeof bot.openFurnace !== 'function') throw new Error('fonderia non disponibile nel client Minecraft')
+      const furnace=bot.findBlock({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
+      if(!furnace)throw new Error('nessun forno raggiungibile per fondere')
+      await bot.pathfinder.goto(new goals.GoalNear(furnace.position.x,furnace.position.y,furnace.position.z,3))
+      const rawName=String(a.name||'').toLowerCase(),input=bot.inventory.items().find(i=>i.name===rawName)||bot.inventory.items().find(i=>/raw_(iron|gold|copper)|iron_ore|gold_ore|copper_ore|beef|porkchop|chicken|mutton|cod|salmon|sand|cobblestone/.test(i.name))
+      if(!input)throw new Error('nessun materiale adatto da fondere nell’inventario')
+      const fuel=bot.inventory.items().find(i=>/coal|charcoal|log|wood|planks|stick|lava_bucket/.test(i.name))
+      if(!fuel)throw new Error('nessun combustibile disponibile')
+      const furnaceWindow=await bot.openFurnace(furnace);await furnaceWindow.putFuel(fuel.type,Math.min(fuel.count,Number(a.count)||input.count));await furnaceWindow.putInput(input.type,Math.min(input.count,Number(a.count)||input.count));await sleep(Math.min(2000,Math.max(500,Number(a.waitMs)||1000)));furnaceWindow.close();return `avviata fusione di ${input.name}`
+    }
     case 'equip': {
       const item = bot.inventory.items().find(i => i.name === String(a.name || ''))
       if (!item) throw new Error(`item not in inventory: ${a.name}`)
@@ -356,6 +367,9 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(nearWater&&!hasBoat&&planks>=5)return{thought:'Esplorazione: acqua attraversabile, preparare una barca.',goal:'creare una barca per navigare',action:'craft',args:{name:'boat',count:1},expected:'barca nell inventario'}
   if(nearWater&&hasBoat&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
   const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone'), sticks=inventoryTotal(bot,x=>x.name==='stick')
+  const furnaceNear=nearbyBlocks.some(x=>/^(furnace|blast_furnace|smoker)$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
+  const smeltable=items.find(x=>/raw_(iron|gold|copper)|(_ore)$|beef|porkchop|chicken|mutton|cod|salmon|sand|cobblestone/.test(x.name)&&x.count>0),fuel=items.some(x=>/coal|charcoal|log|wood|planks|stick|lava_bucket/.test(x.name)&&x.count>0)
+  if(furnaceNear&&smeltable&&fuel)return{thought:'Produzione: materiale grezzo e combustibile disponibili.',goal:`fondere ${smeltable.name} per ottenere risorse utili`,action:'smelt',args:{name:smeltable.name,count:Math.min(smeltable.count,8)},expected:'materiale cotto o raffinato nell’output del forno'}
   if(table&&!has('furnace')&&cobble>=8)return{thought:'Tecnologia di base: trasformare la pietra in un forno.',goal:'creare un forno per fondere materiali e cucinare',action:'craft',args:{name:'furnace',count:1},expected:'forno nell inventario'}
   if(table&&!has('redstone_torch')&&redstone>=1&&sticks>=1)return{thought:'Difesa sperimentale: creare un componente redstone.',goal:'creare una torcia redstone per un meccanismo',action:'craft',args:{name:'redstone_torch',count:1},expected:'torcia redstone nell inventario'}
   if(table&&has('redstone_torch')&&!has('lever')&&cobble>=1&&sticks>=1)return{thought:'Automazione: completare un comando manuale per il circuito.',goal:'creare una leva per azionare la difesa',action:'craft',args:{name:'lever',count:1},expected:'leva nell inventario'}
