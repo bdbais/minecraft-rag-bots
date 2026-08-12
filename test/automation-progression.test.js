@@ -15,3 +15,9 @@ test('autonomous planner experiments with redstone after basic supplies exist', 
   assert.equal(decision.action, 'craft')
   assert.equal(decision.args.name, 'redstone_torch')
 })
+
+test('autonomous planner extends a redstone experiment with a lever', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'crafting_table', count: 1 }, { name: 'redstone_torch', count: 1 }, { name: 'cobblestone', count: 1 }, { name: 'stick', count: 1 }]), { health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] })
+  assert.equal(decision.action, 'craft')
+  assert.equal(decision.args.name, 'lever')
+})
