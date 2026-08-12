@@ -60,6 +60,7 @@ export class Agent {
     const social = typeof this.config.socialContext === 'function' ? this.config.socialContext() : {}
     const team = [...teamBase, { socialMemory: social }]
     const checkpoints = typeof this.config.teamCheckpoints === 'function' ? this.config.teamCheckpoints() : []
+    const society = typeof this.config.societyContext === 'function' ? this.config.societyContext() : {}
     const campaign = campaignState(state, checkpoints)
     const prompt = `CURRENT OBSERVATION (visible now; absence does not erase memory):\n${JSON.stringify(state, null, 2)}\n\nWORLD KNOWLEDGE (persistent discoveries; use coordinates to revisit known resources and places):\n${JSON.stringify(worldKnowledge,null,2)}\n\nTEAMMATES (coordinate, do not duplicate work):\n${JSON.stringify(team, null, 2)}\n\nSOCIAL KARMA: positive karma indicates people who helped or acted kindly; negative karma indicates betrayal, insults or danger. Let it change who you trust, whom you help, and how cautiously you share resources. Do not punish someone forever: update your judgement after new evidence.\n\nTEAM CHECKPOINTS (persistent shared coordinates):\n${JSON.stringify(checkpoints, null, 2)}\n\nRETRIEVED KNOWLEDGE AND EXPERIENCE:\n${memories.map((m, i) => `${i + 1}. ${m.text}`).join('\n') || 'none'}\n\n${manual ? `HUMAN INSTRUCTION (highest priority if safe and possible): ${manual}\n\n` : ''}Select the next small action.`
     this.phase = 'planning'; this.emit('status', { running: true })
@@ -71,7 +72,7 @@ export class Agent {
     if(!manual&&!hazard&&nearbyPlayer){const last=this.socialGreetings.get(nearbyPlayer.username)||0;if(Date.now()-last>120000){this.socialGreetings.set(nearbyPlayer.username,Date.now());decision={thought:'Interazione sociale: un giocatore è vicino.',goal:`salutare ${nearbyPlayer.username}`,action:'chat',args:{message:`Ciao ${nearbyPlayer.username}! Sono ${this.config.name||this.bot.username}, posso aiutarti?`},expected:'saluto inviato'}}}
     if(!manual&&hazard) decision={thought:'Pericolo ambientale vicino: prima mettersi in salvo.',goal:'uscire da lava o acqua',action:'escape_hazard',args:{},expected:'raggiungere una casella solida sicura'}
     if(!decision&&!manual) decision=autonomousProgressionDecision(this.bot,state,checkpoints)
-    if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), `CAMPAIGN STATE (verified): ${JSON.stringify(campaign)}\n\n${prompt}`, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
+    if(!decision)try { const started=Date.now();decision = await this.withTimeout(this.ollama.decide(baseSystem(this.config), `SERVER SOCIETY: ${JSON.stringify(society)}\n\nCAMPAIGN STATE (verified): ${JSON.stringify(campaign)}\n\n${prompt}`, decisionSchema, this.planningController.signal), Number(this.config.planTimeoutMs) || 120000, 'Pianificazione');planningMs=Date.now()-started }
     catch (error) { if (generation !== this.generation || this.planningController.signal.aborted) throw new Error('INTERRUPTED'); throw error }
     finally { this.planningController = null }
     decision=basicProgressionDecision(this.bot,manual)||decision||normalizeDecision(this.bot,decision)
