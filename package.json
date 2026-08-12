@@ -1,6 +1,7 @@
 {
   "name": "ollama-minecraft-rag-agent",
-  "version": "0.19.52",
+  "version": "0.19.53",
+  "developmentTokens": 1300000,
   "description": "Desktop dashboard for multiple Ollama-powered Minecraft RAG bots",
   "author": "bd_ba",
   "main": "desktop/main.js",

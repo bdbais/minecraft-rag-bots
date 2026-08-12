@@ -4,6 +4,7 @@ const iconCache = new Map()
 let mapData=null,mapZoom=6,mapCenter={x:0,z:0},mapFollow=true
 const mapPoiFilters=new Set(['team','storage','resource','danger','portal','workstation'])
 const $ = s => document.querySelector(s)
+const DEVELOPMENT_TOKENS = 1300000
 document.querySelector('.eyebrow')?.replaceChildren('AI CONTROL CENTER')
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600) }
@@ -93,7 +94,7 @@ function render() {
   if (reportedSelection !== selected) { reportedSelection = selected; api.setSelectedBot(selected) }
   renderList(); const cfg = configs.find(x => x.id === selected), s = snapshots.get(selected)
   $('#empty').classList.toggle('hidden', !!cfg); $('#dashboard').classList.toggle('hidden', !cfg); applyHelpTips(); if (!cfg) return
-  const gender = cfg.gender || 'neutral', aiLabel = cfg.aiProvider === 'cloud' ? `Cloud · ${cfg.cloudModel}` : `Ollama · ${s?.runtimeModel||cfg.model}`; $('#title').textContent = `${cfg.name} · ${genderMeta(gender).label}`; $('#server').textContent = `${cfg.username} · ${cfg.host}:${cfg.port} · ${cfg.personality || 'balanced'} · ${aiLabel}`
+  const gender = cfg.gender || 'neutral', aiLabel = cfg.aiProvider === 'cloud' ? `Cloud · ${cfg.cloudModel}` : `Ollama · ${s?.runtimeModel||cfg.model}`; $('#title').textContent = `${cfg.name} · ${genderMeta(gender).label}`; $('#server').textContent = `${cfg.username} · ${cfg.host}:${cfg.port} · ${cfg.personality || 'balanced'} · ${aiLabel} · ${DEVELOPMENT_TOKENS.toLocaleString('it-IT')} token sviluppo`
   $('#heroAvatar').className = `botAvatar ${gender}`; $('#heroAvatar span').textContent = genderMeta(gender).symbol
   const conn = s?.connection || 'offline'; $('#connection').textContent = conn.toUpperCase(); $('#connection').className = `badge ${conn}`
   const hasSession=!!s;$('#toggleAI').textContent=hasSession?'STOP AI':'START AI';$('#toggleAI').classList.toggle('danger',hasSession);$('#toggleAI').classList.toggle('stopAI',hasSession);$('#toggleAI').classList.toggle('primary',!hasSession)

@@ -65,7 +65,7 @@ async function saveConfigs(items) {
 
 function send(channel, payload) { if (win && !win.isDestroyed()) win.webContents.send(channel, payload) }
 async function showAbout() {
-  const result = await dialog.showMessageBox(win, { type: 'info', title: 'About Minecraft RAG Bots', message: 'Minecraft RAG Bots', detail: `Versione ${app.getVersion()}\nAutore: ${AUTHOR}\n\nDashboard AI locale e cloud per agenti Minecraft.\n${GITHUB_URL}`, buttons: ['OK', 'Apri GitHub'], defaultId: 0, cancelId: 0 })
+  const result = await dialog.showMessageBox(win, { type: 'info', title: 'About Minecraft RAG Bots', message: 'Minecraft RAG Bots', detail: `Versione ${app.getVersion()}\nToken cumulativi stimati per lo sviluppo: 1.300.000\nAutore: ${AUTHOR}\n\nDashboard AI locale e cloud per agenti Minecraft.\n${GITHUB_URL}`, buttons: ['OK', 'Apri GitHub'], defaultId: 0, cancelId: 0 })
   if (result.response === 1) await shell.openExternal(GITHUB_URL)
 }
 async function showChangelog() {
