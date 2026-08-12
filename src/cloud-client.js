@@ -1,10 +1,11 @@
 export class CloudAIClient {
-  constructor(baseUrl, chatModel, embedModel, apiKey, scheduler = null) {
+  constructor(baseUrl, chatModel, embedModel, apiKey, scheduler = null, options = {}) {
     this.baseUrl = (baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '')
     this.chatModel = chatModel
     this.embedModel = embedModel
     this.apiKey = apiKey
     this.scheduler = scheduler
+    this.onUsage = options.onUsage
   }
   async request(path, body, timeoutMs = 120000, externalSignal) {
     if (!this.apiKey) throw new Error('API key cloud mancante')
@@ -15,7 +16,7 @@ export class CloudAIClient {
       try {
         const response = await fetch(`${this.baseUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` }, body: JSON.stringify(body), signal })
         if (!response.ok) throw new Error(`Cloud AI ${response.status}: ${await response.text()}`)
-        return response.json()
+        const data=await response.json();this.onUsage?.({provider:'cloud',model:body.model,usage:data.usage||{}});return data
       } finally { clearTimeout(timer) }
     }
     return this.scheduler ? this.scheduler.schedule(run, { signal: externalSignal, priority: path.includes('chat') ? 2 : 1 }) : run()

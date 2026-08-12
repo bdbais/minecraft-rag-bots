@@ -5,7 +5,7 @@ export class OllamaClient {
     this.embedModel = embedModel
     this.scheduler = scheduler
     this.retryDelayMs = 1500
-    this.fallbackModel=options.fallbackModel||'';this.onFallback=options.onFallback;this.consecutiveDecisionFailures=0
+    this.fallbackModel=options.fallbackModel||'';this.onFallback=options.onFallback;this.onUsage=options.onUsage;this.consecutiveDecisionFailures=0
   }
 
   async request(path, body, timeoutMs = 120000, externalSignal) {
@@ -17,7 +17,7 @@ export class OllamaClient {
       try {
         for(let attempt=0;attempt<7;attempt++){
           const response=await fetch(`${this.baseUrl}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal})
-          if(response.ok)return response.json()
+          if(response.ok){const data=await response.json();this.onUsage?.({provider:'offline',model:body.model,usage:data});return data}
           const detail=await response.text(),transient=[429,500,502,503,504].includes(response.status)||/bootstrap|loading|not ready|runner/i.test(detail)
           if(!transient||attempt===6)throw new Error(`Ollama ${response.status}: ${detail}`)
           await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,this.retryDelayMs*(attempt+1));signal?.addEventListener('abort',()=>{clearTimeout(timer);reject(signal.reason||new Error('Ollama interrotto'))},{once:true})})
