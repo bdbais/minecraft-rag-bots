@@ -94,6 +94,10 @@ export class Agent {
       const pickaxe=inventory.find(x=>/_pickaxe$/.test(x.name)); decision=pickaxe?{thought:'La fuga ambientale fallisce: cambiare piano e scavare un passaggio sicuro.',goal:'scavare una via alternativa lontano dal fluido',action:'dig_escape',args:{},expected:'passaggio libero dalla zona pericolosa',recoveryFor:'escape_hazard'}:{thought:'La fuga ambientale fallisce senza attrezzi: esplorare un percorso alternativo.',goal:'allontanarsi dalla zona pericolosa con un percorso diverso',action:'explore',args:{radius:16},expected:'nuova posizione lontana dal pericolo',recoveryFor:'escape_hazard'}
       this.emit('log',{level:'info',message:`Recovery: escape_hazard fallita, cambio strategia in ${decision.action}`})
     }
+    if(decision.action==='collect_wood'&&(this.actionFailures.collect_wood||0)>=2){
+      decision={thought:'La raccolta del legno non produce progresso: cambiare zona prima di riprovare.',goal:'esplorare una nuova area per trovare alberi',action:'explore',args:{radius:32},expected:'nuova area caricata con possibili risorse',recoveryFor:'collect_wood'}
+      this.emit('log',{level:'info',message:'Recovery: collect_wood fallita, esploro una nuova area'})
+    }
     this.steps++; this.emit('decision', { decision, state, manual })
     // Il learner deve ricevere lo snapshot strutturato, non la stringa usata
     // soltanto per il diario: stateDelta altrimenti non vede inventario e posizione.
