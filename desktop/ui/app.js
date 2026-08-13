@@ -18,6 +18,7 @@ function formatPlayTime(onlineSince){if(!onlineSince)return'00:00:00';const seco
 function formatDuration(seconds=0){seconds=Math.max(0,Math.floor(seconds));const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`}
 const formatKm=value=>(Number(value)||0).toLocaleString('it-IT',{minimumFractionDigits:3,maximumFractionDigits:3})
 const helpTips = {
+  profession: 'Professione persistente: orienta priorità, abilità e decisioni del bot nel tempo.',
   emergencyStop:'Ferma immediatamente tutti i bot e annulla anche le richieste AI in attesa.', newBot:'Crea e configura un nuovo giocatore controllato dall’AI.',
   closeOllamaSetup:'Chiude la configurazione guidata. Puoi riaprirla dal menu Help.', useCloudOnly:'Salta Ollama: potrai configurare i bot con un servizio AI Cloud.', installOllama:'Installa il motore AI locale Ollama; su Linux e macOS apre il download ufficiale.', startOllama:'Avvia il servizio Ollama già installato sul computer.', setupModels:'Scarica i modelli necessari e crea automaticamente minecraft-agent.',
   editBot:'Apre le impostazioni del bot selezionato.', toggleAI:'START AI connette e avvia il bot; STOP AI arresta l’AI e lo disconnette dal server.', sendPrompt:'Invia questa istruzione soltanto al bot selezionato.', sendTeamPrompt:'Invia questa istruzione a tutti i bot connessi.',
@@ -84,7 +85,7 @@ async function renderInventory(game, version, botId) {
 function renderList() {
   const groups = new Map()
   for (const c of configs) { const key = `${c.host}:${c.port}`; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(c) }
-  $('#botList').innerHTML = [...groups.entries()].map(([server,bots]) => `<section class="serverGroup"><div class="serverGroupTitle">${esc(server)} <span>${bots.length}</span></div>${bots.map(c => { const s = snapshots.get(c.id), g = c.gender || 'neutral', type = prettyName(c.personality || 'balanced'), engine = c.aiProvider === 'cloud' ? 'Cloud' : 'Locale'; return `<div class="botItem ${selected===c.id?'active':''}" data-id="${c.id}"><div class="botItemMain">${avatarHtml(g)}<div><b>${esc(c.name)}<span class="genderLabel">${genderMeta(g).label} · ${esc(type)} · ${engine}</span></b><small>${esc(c.username)}</small></div></div><div class="botItemTools"><i class="dot ${s?.connection==='online'?'online':''}"></i><button class="botDelete" data-delete-id="${c.id}">×</button></div></div>` }).join('')}</section>`).join('')
+  $('#botList').innerHTML = [...groups.entries()].map(([server,bots]) => `<section class="serverGroup"><div class="serverGroupTitle">${esc(server)} <span>${bots.length}</span></div>${bots.map(c => { const s = snapshots.get(c.id), g = c.gender || 'neutral', type = prettyName(c.personality || 'balanced'), profession = prettyName(c.profession || 'wanderer'), engine = c.aiProvider === 'cloud' ? 'Cloud' : 'Locale'; return `<div class="botItem ${selected===c.id?'active':''}" data-id="${c.id}"><div class="botItemMain">${avatarHtml(g)}<div><b>${esc(c.name)}<span class="genderLabel">${genderMeta(g).label} · ${esc(profession)} · ${esc(type)} · ${engine}</span></b><small>${esc(c.username)}</small></div></div><div class="botItemTools"><i class="dot ${s?.connection==='online'?'online':''}"></i><button class="botDelete" data-delete-id="${c.id}">×</button></div></div>` }).join('')}</section>`).join('')
   document.querySelectorAll('.botItem').forEach(el => el.onclick = () => { selected = el.dataset.id; hiddenLogBefore = 0; render() })
   document.querySelectorAll('.botItemTools').forEach(tools=>{const item=tools.closest('.botItem');if(!item||tools.querySelector('.botClone'))return;const b=document.createElement('button');b.className='botClone';b.type='button';b.textContent='⧉';b.title='Clona questo bot';b.dataset.cloneId=item.dataset.id;b.onclick=e=>{e.stopPropagation();cloneBot(b.dataset.cloneId)};tools.insertBefore(b,tools.firstChild)})
   document.querySelectorAll('.botDelete').forEach(button=>button.onclick=e=>{e.stopPropagation();removeBot(button.dataset.deleteId)})
@@ -123,6 +124,7 @@ function render() {
 }
 
 function openEditor(cfg = null) {
+  if(!document.forms.bot?.elements.profession){const anchor=document.forms.bot?.elements.personality?.closest('label');if(anchor){const label=document.createElement('label');label.innerHTML='<span>Professione</span><select name="profession" title="Professione persistente del bot"><option value="wanderer">Vagabondo</option><option value="farmer">Contadino</option><option value="breeder">Allevatore</option><option value="warrior">Guerriero</option><option value="hunter">Cacciatore</option><option value="builder">Costruttore</option><option value="explorer">Esploratore</option><option value="scientist">Scienziato</option><option value="priest">Sacerdote</option><option value="nun">Suora</option><option value="trader">Mercante</option></select></label>';anchor.after(label)}}
   if(!document.forms.bot?.elements.startAtAppRestart){const anchor=document.forms.bot?.elements.autoStart?.closest('label');if(anchor){const label=document.createElement('label');label.className='check';label.innerHTML='<input name="startAtAppRestart" type="checkbox"> Riavvia l’AI all’avvio dell’app';anchor.after(label)}}
   const form = $('#botForm'); form.reset(); form.elements.id.value = cfg?.id || ''
   $('#editorTitle').textContent = cfg ? 'Modifica bot' : 'Nuovo bot'; $('#deleteBot').classList.toggle('hidden', !cfg)
@@ -131,6 +133,7 @@ function openEditor(cfg = null) {
   if(form.startAtAppRestart) form.startAtAppRestart.checked = !!cfg?.startAtAppRestart
   form.listenChat.checked = cfg ? cfg.listenChat !== false : true
   form.gender.value = cfg?.gender || 'neutral'
+  if(form.profession) form.profession.value = cfg?.profession || 'wanderer'
   form.aiProvider.value = cfg?.aiProvider || 'local'
   form.cloudApiKey.value = ''
   form.cloudApiKey.placeholder = cfg?.hasCloudApiKey ? 'Chiave già salvata — lascia vuoto per mantenerla' : 'Inserisci la API key'

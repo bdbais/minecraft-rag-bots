@@ -72,6 +72,7 @@ export class BotManager extends EventEmitter {
   }
   log(id, level, message) { const e = this.entries.get(id); if (!e) return; const now=Date.now(), key=`${level}:${String(message)}`, previous=e.logDedupe?.get(key); if(level==='error'&&previous&&now-previous.at<30000){previous.count++; previous.at=now; return} if(previous?.count>1){const summary={at:new Date(previous.at).toISOString(),level:'info',message:`Ripetizione soppressa: “${key.slice(level.length+1)}” (${previous.count} volte)`};e.logs.push(summary);fs.appendFile(path.join(this.dataDir,`technical-log-${id}.jsonl`),`${JSON.stringify(summary)}\n`).catch(()=>{})} e.logDedupe?.set(key,{at:now,count:1}); const record={at:new Date(now).toISOString(),level,message};e.logs.push(record);if(e.logs.length>300)e.logs.shift();fs.appendFile(path.join(this.dataDir,`technical-log-${id}.jsonl`),`${JSON.stringify(record)}\n`).catch(()=>{});this.publish(id) }
   async connect(config) {
+    config = { ...config, profession: config.profession || 'wanderer' }
     const id = config.id || crypto.randomUUID()
     if (this.entries.has(id)) throw new Error('Questo bot è già connesso')
     let startupHistory=[];try{const saved=JSON.parse(await fs.readFile(path.join(this.dataDir,`startup-${id}.json`),'utf8'));startupHistory=Array.isArray(saved)?saved:[]}catch{}

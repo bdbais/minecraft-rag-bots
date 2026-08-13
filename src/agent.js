@@ -9,6 +9,7 @@ import { exploreStrategies } from './strategy-search.js'
 const baseSystem = config => `You control a Minecraft bot. Adapt to the detected game mode: survival requires hunger, health, resources and crafting; creative permits building and unlimited resources but still requires deliberate construction; adventure generally forbids breaking blocks, so interact, explore and collaborate; spectator must not attempt physical actions and should observe/report only. Work incrementally toward defeating the Ender Dragon when the mode permits it.
 Identity gender: ${config.gender || 'neutral'}. Use identity-consistent language when referring to yourself, without stereotypes.
 Personality and role: ${personalityPrompt(config.personality)}
+Persistent profession: ${config.profession || 'wanderer'}. Let this profession shape priorities while remaining adaptable: farmer grows food, breeder raises animals, warrior protects the group, hunter obtains food, builder creates infrastructure, explorer/wanderer maps the world, scientist experiments with mechanisms, priest/nun supports the community and records memories, trader manages exchanges. Perform verifiable actions and learn from outcomes.
 ${psychProfile(config).prompt}
 Choose only one provided action. Args by action:
 wait {ms}; chat {message}; unstuck {}; escape_hazard {}; move_to {x,y,z,range}; explore {radius}; navigate_boat {durationMs}; enter_portal {}; activate_end_portal {}; follow_player {username,range}; give_item {username,name,count}; share_checkpoint {type,label,x?,y?,z?,note}; collect_wood {count}; collect_block {name,count,maxDistance}; collect_drops {maxDistance}; collect_fluid {fluid,maxDistance}; cool_lava {maxDistance}; harvest_crops {count,maxDistance}; plant_crops {count,maxDistance}; prepare_farm {maxDistance}; inspect_storage {}; store_items {maxDistance}; read_sign {maxDistance}; write_sign {lines,text,maxDistance}; craft {name,count}; equip {name,destination}; eat {name?}; build_shelter {}; build_door {}; build_portal {}; build_pen {}; breed_animals {species}; build_memorial {}; attack_nearest {}; stop {}.
@@ -47,7 +48,7 @@ export class Agent {
     const generation = this.generation
     this.busy = true; this.phase = 'retrieval'; this.emit('status', { running: true })
     try {
-    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
+    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.profession=this.config.profession||'wanderer'; state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
     await this.config.onObservation?.(state)
     const worldKnowledge=typeof this.config.worldKnowledge==='function'?this.config.worldKnowledge():{}
     const query = `Goal: finish Minecraft. Current state: ${JSON.stringify(state)}`
