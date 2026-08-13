@@ -34,3 +34,9 @@ test('planner asks a nearby teammate for help before approaching danger',()=>{
   assert.equal(decision.action,'chat')
   assert.match(decision.args.message,/Mattew/)
 })
+
+test('planner crafts a weapon before a dangerous POI when alone',()=>{
+  const bot={inventory:{items:()=>[{name:'crafting_table',count:1},{name:'oak_planks',count:4}]},findBlock:()=>null,registry:{blocksByName:{}}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[],visibleTargets:[{name:'spawner',x:8,y:20,z:8,distance:12}]},[])
+  assert.equal(decision.action,'craft');assert.equal(decision.args.name,'sword')
+})
