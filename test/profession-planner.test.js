@@ -47,3 +47,9 @@ test('fisher profession fishes near water when a rod is available', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'fishing_rod', count: 1 }, { name: 'oak_log', count: 8 }, { name: 'crafting_table', count: 1 }, { name: 'wooden_pickaxe', count: 1 }, { name: 'wooden_axe', count: 1 }, { name: 'wooden_shovel', count: 1 }, { name: 'chest', count: 1 }, { name: 'torch', count: 16 }, { name: 'cobblestone', count: 16 }]), { profession: 'fisher', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['water'] }, [])
   assert.equal(decision.action, 'fish')
 })
+
+test('trader profession proposes an exchange to a nearby teammate', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'iron_ingot', count: 8 }]), { profession: 'trader', health: 20, food: 20, nearbyEntities: [{ type: 'player', username: 'Alex', distance: 3 }], nearbyBlocks: [] }, [])
+  assert.equal(decision.action, 'chat')
+  assert.match(decision.args.message, /Alex/)
+})
