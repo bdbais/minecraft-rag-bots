@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -422,6 +422,19 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       finally { bot.setControlState?.('forward', false); try { await bot.dismount?.() } catch {} }
       const after=bot.entity.position, distance=before.distanceTo(after); if(distance<2)throw new Error('barca posata ma nessun avanzamento verificato'); return `barca posata e navigazione completata: ${Math.round(distance)} blocchi`
     }
+    case 'enter_portal': {
+      const portal=bot.findBlock?.({matching:b=>b?.name==='nether_portal',maxDistance:24})
+      if(!portal)throw new Error('nessun portale Nether attivo raggiungibile')
+      const beforeDimension=String(bot.game?.dimension||'')
+      await bot.pathfinder.goto(new goals.GoalNear(portal.position.x,portal.position.y,portal.position.z,1))
+      bot.setControlState?.('forward',true)
+      try{for(let i=0;i<12;i++){await sleep(500);if(String(bot.game?.dimension||'')!==beforeDimension)break}}
+      finally{bot.setControlState?.('forward',false)}
+      const afterDimension=String(bot.game?.dimension||'')
+      if(afterDimension===beforeDimension)throw new Error('portale raggiunto ma attraversamento non verificato')
+      await onShareCheckpoint?.({type:'portal',label:`Ingresso ${afterDimension.includes('nether')?'Nether':'dimensione'} raggiunto`,x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z),dimension:afterDimension,source:'nether'})
+      return `portale attraversato: ${beforeDimension||'overworld'} → ${afterDimension}`
+    }
     case 'build_shelter': {
       const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
       if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
@@ -611,6 +624,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(has('bucket')&&!has('lava_bucket')&&nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='lava'))return{thought:'Gestione ambientale: una sorgente di lava può diventare combustibile o una barriera difensiva.',goal:'raccogliere lava in un secchio da usare in sicurezza',action:'collect_fluid',args:{fluid:'lava'},expected:'lava nel secchio'}
   if(has('water_bucket')&&nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='lava'))return{thought:'Sperimentazione controllata: acqua e lava vicine permettono di produrre ossidiana senza esporsi al fluido.',goal:'raffreddare una sorgente di lava e creare ossidiana',action:'cool_lava',args:{maxDistance:12},expected:'lava trasformata in ossidiana o pietra verificata'}
   if(table&&!has('flint_and_steel')&&iron>=1&&flint>=1&&(nearFluid||knownPortal))return{thought:'Esplorazione pianificata: preparare l’acciarino solo per un portale o una zona di fluidi.',goal:'creare un acciarino per un portale o una difesa',action:'craft',args:{name:'flint_and_steel',count:1},expected:'acciarino nell inventario'}
+  const portalCheckpoint=checkpoints.filter(x=>x?.type==='portal'&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&(!x.dimension||String(x.dimension)===String(bot.game?.dimension||'overworld'))).sort((a,b)=>checkpointDistanceFrom(bot.entity?.position,a)-checkpointDistanceFrom(bot.entity?.position,b))[0]
+  if(portalCheckpoint&&checkpointDistanceFrom(bot.entity?.position,portalCheckpoint)<=6)return{thought:'Campagna Nether: portale attivo vicino, attraversarlo per continuare la spedizione.',goal:'attraversare il portale Nether e proseguire la campagna',action:'enter_portal',args:{},expected:'dimensione cambiata e checkpoint aggiornato'}
   if(logs<2&&planks<4)return{thought:'Progressione automatica: servono materiali primari.',goal:'raccogliere legno',action:'collect_wood',args:{count:4},expected:'legno nell inventario'}
   if(!table&& (logs>0||planks>=4))return{thought:'Progressione automatica: banco da lavoro mancante.',goal:'creare e posizionare un banco',action:'craft',args:{name:'crafting_table',count:1},expected:'banco disponibile'}
   if(table&&!items.some(x=>/_pickaxe$/.test(x.name)))return{thought:'Progressione automatica: utensile base mancante.',goal:'creare un piccone',action:'craft',args:{name:'pickaxe',count:1},expected:'piccone nell inventario'}

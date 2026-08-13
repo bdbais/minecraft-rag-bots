@@ -15,3 +15,11 @@ test('navigate_boat equips, places, mounts and moves forward', async () => {
   assert.match(result, /navigazione completata/)
   assert.deepEqual(controls, [['forward', true], ['forward', false]])
 })
+
+test('enter_portal verifies a real dimension change', async()=>{
+  const controls=[]
+  const bot={game:{dimension:'overworld'},entity:{position:{x:4,y:70,z:8}},findBlock:()=>({name:'nether_portal',position:{x:4,y:70,z:8}}),pathfinder:{goto:async()=>{}},setControlState:(key,value)=>{controls.push([key,value]);if(key==='forward'&&value)bot.game.dimension='the_nether'}}
+  const result=await execute(bot,{action:'enter_portal',args:{}})
+  assert.match(result,/portale attraversato/)
+  assert.deepEqual(controls,[['forward',true],['forward',false]])
+})
