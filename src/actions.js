@@ -179,6 +179,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'explore': {
       const radius=Math.max(8,Math.min(Number(a.radius)||18,40)),p=bot.entity.position
+      const seek=String(a.seek||'').toLowerCase(),seekNames={water:['water','kelp','seagrass'],redstone:['redstone_ore','deepslate_redstone_ore'],seeds:['wheat','grass','tall_grass','village'],animals:['cow','pig','sheep','chicken','rabbit']}
+      if(seek&&seekNames[seek]){const entities=Object.values(bot.entities||{}).filter(e=>e?.position&&seek==='animals'&&e.type==='mob'&&seekNames.animals.includes(String(e.name||'')));const target=entities.sort((a,b)=>a.position.distanceTo?.(p)-b.position.distanceTo?.(p))[0];if(target){await bot.pathfinder.goto(new goals.GoalNear(target.position.x,target.position.y,target.position.z,3));return `raggiunta fauna ${target.name}`};const ids=seekNames[seek].map(name=>bot.registry?.blocksByName?.[name]?.id).filter(Number.isInteger);if(ids.length&&typeof bot.findBlock==='function'){const block=bot.findBlock({matching:ids,maxDistance:radius,count:1});if(block){await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,2));return `raggiunto target ${seek}`}}}
       // Le pattuglie seguono settori ripetibili: coprono il perimetro invece di scegliere una direzione casuale.
       const sector=a.patrol?Number(a.sector||0)%8:Math.random()*8,angle=sector*(Math.PI/4)
       const x=Math.floor(p.x+Math.cos(angle)*radius),z=Math.floor(p.z+Math.sin(angle)*radius)
