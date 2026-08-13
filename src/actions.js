@@ -459,7 +459,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.equip(obsidian,'hand')
       for(const [dx,dy] of frame){const target=bot.blockAt(new Vec3(p.x+dx,p.y+dy,p.z));if(!target||target.boundingBox==='block')continue;const supports=[[0,-1,0,0,1,0],[0,1,0,0,-1,0],[-1,0,0,1,0,0],[1,0,0,-1,0,0]];let done=false;for(const [sx,sy,sz,fx,fy,fz] of supports){const base=bot.blockAt(new Vec3(p.x+dx+sx,p.y+dy+sy,p.z+sz));if(!base||base.boundingBox!=='block')continue;try{await bot.placeBlock(base,new Vec3(fx,fy,fz));placed.push([dx,dy]);done=true;break}catch{}}if(!done)continue}
       if(placed.length<10)throw new Error(`frame portale incompleto: ${placed.length}/10 blocchi`)
-      await bot.equip(flint,'hand');const inside=bot.blockAt(new Vec3(p.x+1,p.y+1,p.z));if(typeof bot.activateBlock==='function'&&inside)try{await bot.activateBlock(inside)}catch{}
+      await bot.equip(flint,'hand');const ignitionTarget=bot.blockAt(new Vec3(p.x,p.y+1,p.z));if(typeof bot.activateBlock==='function'&&ignitionTarget)try{await bot.activateBlock(ignitionTarget)}catch{}
       await onShareCheckpoint?.({type:'portal',label:'Portale Nether',x:p.x+1,y:p.y+1,z:p.z,dimension:bot.game?.dimension,note:'frame costruito e acciarino usato',source:'nether'})
       return 'portale Nether costruito e acceso'
     }
