@@ -228,3 +228,4 @@ export class BotManager extends EventEmitter {
   async disconnect(id) { const e = this.entries.get(id); if (!e) return; e.closing = true; clearInterval(e.chestTimer);clearInterval(e.mapTimer);clearInterval(e.lifetimeTimer);clearInterval(e.teamSocialTimer); e.agent?.stop();await e.lifetime?.save(); await e.biography?.endSession('Disconnessione dalla dashboard'); e.bot?.quit('Dashboard disconnect'); this.entries.delete(id); this.emit('removed', id) }
   closeAll() { for (const id of [...this.entries.keys()]) this.disconnect(id) }
 }
+
