@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'activate_end_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'loot_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'trade', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'activate_end_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'loot_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'trade', 'enchant', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
