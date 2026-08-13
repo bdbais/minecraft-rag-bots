@@ -17,6 +17,14 @@ export function simulateLavaDefense(bot, origin, {maxCells=24, minDistance=4}={}
   return {safe:unsafe.length===0&&cells.length>0,cells,unsafe,reason:unsafe.length?'il flusso raggiunge una zona protetta o troppo vicina':'percorso del flusso confinato'}
 }
 async function compactInventory(bot){const slots=bot.inventory?.slots||[],byKey=new Map();for(let i=0;i<slots.length;i++){const item=slots[i];if(!item)continue;let nbt='';try{nbt=item.nbt?JSON.stringify(item.nbt):''}catch{}const key=`${item.type}:${item.metadata||0}:${nbt}`;const previous=byKey.get(key);if(previous!=null&&typeof bot.moveSlotItem==='function'){try{await bot.moveSlotItem(i,previous)}catch{}}else byKey.set(key,i)}}
+async function equipToolForBlock(bot, blockName){
+  if(typeof bot.equip!=='function')return null
+  const name=String(blockName||''),kind=/_log$|_wood$|_stem$|_hyphae$/.test(name)?'axe':/dirt|sand|gravel|clay|soul_soil|snow/.test(name)?'shovel':/crop|wheat|carrot|potato|beetroot/.test(name)?'hoe':/stone|deepslate|ore|cobble|obsidian|netherrack|blackstone/.test(name)?'pickaxe':null
+  if(!kind)return null
+  const tier={wooden:1,stone:2,iron:3,diamond:4,netherite:5},items=bot.inventory?.items?.()||[],tool=items.filter(i=>new RegExp(`_${kind}$`).test(i.name)&&i.count>0).sort((a,b)=>(tier[String(b.name).split('_')[0]]||0)-(tier[String(a.name).split('_')[0]]||0))[0]
+  if(tool){await bot.equip(tool,'hand');return tool.name}
+  return null
+}
 async function collectNearbyDrops(bot,maxDistance=16){
   await sleep(700)
   const drops=Object.values(bot.entities||{}).filter(e=>e.name==='item'&&e.position?.distanceTo(bot.entity.position)<=maxDistance).sort((a,b)=>a.position.distanceTo(bot.entity.position)-b.position.distanceTo(bot.entity.position))
@@ -200,14 +208,14 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const protectedObject=/^(crafting_table|furnace|blast_furnace|smoker|chest|trapped_chest|barrel|anvil|smithing_table|grindstone|stonecutter|cartography_table|loom|enchanting_table|brewing_stand|door|.*_door|trapdoor|.*_trapdoor|fence_gate|.*_fence_gate|bed|.*_bed|sign|.*_sign|hanging_sign|.*_hanging_sign|ladder|scaffolding|torch|.*_torch|lantern|.*_lantern|lever|button|.*_button|pressure_plate|.*_pressure_plate|rail|.*_rail)$/.test(name)
       if (protectedObject && !explicitDestroy) throw new Error(`${name} è un oggetto/postazione protetta: serve un comando esplicito per distruggerla`)
       const count=Math.max(1,Math.min(Number(a.count)||1,16)),distance=Math.min(Number(a.maxDistance)||48,64),before=inventoryTotal(bot);let broken=0
-      for(let i=0;i<count;i++){const block=bot.findBlock({matching:b=>b?.name===name,maxDistance:distance});if(!block)break;await bot.collectBlock.collect(block);broken++;await collectNearbyDrops(bot,16)}
+      for(let i=0;i<count;i++){const block=bot.findBlock({matching:b=>b?.name===name,maxDistance:distance});if(!block)break;await equipToolForBlock(bot,name);await bot.collectBlock.collect(block);broken++;await collectNearbyDrops(bot,16)}
       const gained=inventoryTotal(bot)-before;if(!broken)throw new Error(`nessun blocco ${name} visibile e raggiungibile`);if(bot.inventory?.items&&gained<=0)throw new Error(`${broken} blocchi ${name} rotti, ma nessun materiale è entrato nell’inventario`)
       return `raccolti ${gained||broken} oggetti da ${name}`
     }
     case 'collect_wood': {
       await compactInventory(bot)
       const wanted=Math.max(1,Math.min(Number(a.count)||4,16)),before=inventoryTotal(bot,x=>/(_log|_wood|_stem|_hyphae)$/.test(x.name)),species=[]
-      for(let i=0;i<wanted;i++){let positions=await findWoodWithExploration(bot,48);if(!positions.length){await sleep(1000);positions=await findWoodWithExploration(bot,96)}if(!positions.length)break;const minY=bot.entity.position.y-12,blocks=positions.map(p=>bot.blockAt(p)).filter(x=>isWood(x)&&x.position.y>=minY).sort((x,y)=>x.position.distanceTo(bot.entity.position)-y.position.distanceTo(bot.entity.position)||x.position.y-y.position.y),block=blocks[0];if(!block)break;try{await bot.collectBlock.collect(block)}catch{try{await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,2));await bot.dig(block)}catch{}}species.push(block.name);await collectNearbyDrops(bot,24);await sleep(500);if(inventoryTotal(bot,x=>/(_log|_wood|_stem|_hyphae)$/.test(x.name))-before>=wanted)break}
+      for(let i=0;i<wanted;i++){let positions=await findWoodWithExploration(bot,48);if(!positions.length){await sleep(1000);positions=await findWoodWithExploration(bot,96)}if(!positions.length)break;const minY=bot.entity.position.y-12,blocks=positions.map(p=>bot.blockAt(p)).filter(x=>isWood(x)&&x.position.y>=minY).sort((x,y)=>x.position.distanceTo(bot.entity.position)-y.position.distanceTo(bot.entity.position)||x.position.y-y.position.y),block=blocks[0];if(!block)break;try{await equipToolForBlock(bot,block.name);await bot.collectBlock.collect(block)}catch{try{await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,2));await equipToolForBlock(bot,block.name);await bot.dig(block)}catch{}}species.push(block.name);await collectNearbyDrops(bot,24);await sleep(500);if(inventoryTotal(bot,x=>/(_log|_wood|_stem|_hyphae)$/.test(x.name))-before>=wanted)break}
       const gained=inventoryTotal(bot,x=>/(_log|_wood|_stem|_hyphae)$/.test(x.name))-before;if(gained<=0)throw new Error('nessun albero raggiungibile entro 96 blocchi: esplora una nuova zona o verifica il bioma')
       return `raccolti ${gained} blocchi di legno (${[...new Set(species)].join(', ')})`
     }
