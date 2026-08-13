@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { Vec3 } from 'vec3'
 const solid=b=>b&&!/^(air|cave_air|void_air)$/.test(b.name||'')
-export function classifyPoi(name=''){if(/^(chest|trapped_chest|barrel)$/.test(name))return'storage';if(/portal|end_gateway/.test(name))return'portal';if(/lava|fire|spawner|magma/.test(name))return'danger';if(/(_ore|ancient_debris)$/.test(name))return'resource';if(/crafting_table|furnace|smoker|anvil|enchanting_table|brewing_stand|stonecutter|grindstone/.test(name))return'workstation';return null}
+export function classifyPoi(name=''){const n=String(name).toLowerCase();if(/^(chest|trapped_chest|barrel)$/.test(n))return'storage';if(/village|villager|outpost|pillager_outpost|shipwreck|ruined_portal/.test(n))return'village';if(/dungeon|stronghold|fortress|bastion|ancient_city|monument|temple/.test(n))return'dungeon';if(/portal|end_gateway/.test(n))return'portal';if(/lava|fire|spawner|magma/.test(n))return'danger';if(/(_ore|ancient_debris)$/.test(n))return'resource';if(/crafting_table|furnace|smoker|anvil|enchanting_table|brewing_stand|stonecutter|grindstone/.test(n))return'workstation';return null}
 export class WorldMapMemory{
   constructor(file,cellSize=4){this.file=file;this.cellSize=cellSize;this.cells={};this.trail=[];this.pois={};this.landmarks={}}
   async load(){try{const data=JSON.parse(await fs.readFile(this.file,'utf8'));this.cells=data.cells||{};this.trail=data.trail||[];this.pois=data.pois||{};this.landmarks=data.landmarks||{}}catch{}}
