@@ -26,3 +26,8 @@ test('hunter profession maintains a food reserve before starvation', () => {
   assert.equal(decision.action, 'hunt_nearest')
   assert.equal(decision.args.target, 'cow')
 })
+
+test('farmer profession harvests a mature field proactively', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'bread', count: 16 }]), { profession: 'farmer', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['wheat'] }, [])
+  assert.equal(decision.action, 'harvest_crops')
+})
