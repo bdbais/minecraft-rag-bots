@@ -16,3 +16,10 @@ test('planner deposits when inventory slots are full even with many small stacks
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:['chest']})
   assert.equal(decision.action,'store_items')
 })
+
+test('planner starts storage workflow even when no chest is currently visible',()=>{
+  const slots=Array.from({length:30},(_,i)=>({name:i===0?'oak_planks':`material_${i}`,count:1}))
+  const bot={inventory:{slots,items:()=>slots},game:{gameMode:'survival'}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[]})
+  assert.equal(decision.action,'store_items')
+})
