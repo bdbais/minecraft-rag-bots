@@ -179,7 +179,7 @@ export class BotManager extends EventEmitter {
       const goalMatch=text.match(/\b(?:aiutami a|possiamo|dobbiamo|andiamo a|prova a|costruisci|trova|raccogli|porta|difendi|esplora)\s+(.{3,100})/i)
       if(goalMatch){const goal=entry.social?.proposeGoal(goalMatch[1].replace(/[.!?]+$/,''),username);entry.dialogue?.observe({incoming:text,reply:'obiettivo registrato',goal:true,karma:positive?1:negative?-1:0});entry.social?.save().catch(()=>{});if(goal)this.log(id,'info',`Obiettivo sociale registrato: ${goal.title} · proposto da ${username}`)}
       entry.social?.save().catch(()=>{})
-      const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
+      const teammate = [...this.entries.values()].some(e => e !== entry && [e.bot?.username,e.config.username,e.config.name].filter(Boolean).some(name=>String(name).toLowerCase()===String(username).toLowerCase()))
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
       const response = !teammate ? socialResponse(config, username, text) : (addressed ? socialResponse(config, username, text) : null)
       const lastReply = entry.socialReplyAt.get(sender) || 0
