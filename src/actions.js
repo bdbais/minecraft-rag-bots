@@ -542,7 +542,9 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       }
       const stillTracked=Object.values(bot.entities||{}).includes(target)
       if((Number.isFinite(Number(target.health))&&Number(target.health)>0)||(target.isValid===true&&stillTracked))throw new Error(`animale ${target.name||'bersaglio'} ancora vivo dopo la caccia`)
-      await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
+      await collectNearbyDrops(bot,16)
+      await onShareCheckpoint?.({type:'resource',label:`Fauna: ${target.name||'animale'}`,x:Math.floor(target.position.x),y:Math.floor(target.position.y),z:Math.floor(target.position.z),dimension:bot.game?.dimension,note:'preda abbattuta e drop raccolti; area utile per cibo',source:'hunting'})
+      return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
     default: throw new Error(`unsupported action ${decision.action}`)
   }

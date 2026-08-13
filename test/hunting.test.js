@@ -31,3 +31,10 @@ test('hunt accepts a visible edible target up to 32 blocks away', async()=>{
   const bot={entity:{position:{x:0,y:64,z:0,distanceTo:()=>24}},inventory:{items:()=>[]},nearestEntity:predicate=>predicate(target)?target:null,pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},entities:{}}
   await execute(bot,{action:'hunt_nearest',args:{}})
 })
+
+test('hunt shares the verified fauna location', async()=>{
+  const shared=[];const target={type:'mob',name:'cow',position:{x:24,y:64,z:0,distanceTo:()=>2}}
+  const bot={entity:{position:{x:0,y:64,z:0,distanceTo:()=>2}},inventory:{items:()=>[]},nearestEntity:()=>target,pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},entities:{}}
+  await execute(bot,{action:'hunt_nearest',args:{}},{onShareCheckpoint:x=>shared.push(x)})
+  assert.equal(shared[0].type,'resource')
+})
