@@ -8,3 +8,10 @@ test('fisher replenishes a low food stock, not only an empty inventory', () => {
   assert.equal(decision.action,'fish')
 })
 
+test('fishing shares the verified fishing spot', async()=>{
+  const shared=[];let fishCount=0
+  const bot={entity:{position:{x:4,y:64,z:-2}},inventory:{items:()=>[{name:'fishing_rod',count:1},{name:'cod',count:fishCount}]},equip:async()=>{},fish:async()=>{fishCount=1},entities:{}}
+  await (await import('../src/actions.js')).execute(bot,{action:'fish',args:{}},{onShareCheckpoint:x=>shared.push(x)})
+  assert.equal(shared[0].type,'resource')
+})
+
