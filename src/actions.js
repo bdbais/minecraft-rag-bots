@@ -338,7 +338,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'equip': {
       const item = bot.inventory.items().find(i => i.name === String(a.name || ''))
       if (!item) throw new Error(`item not in inventory: ${a.name}`)
-      await bot.equip(item, a.destination || 'hand'); return `equipped ${item.name}`
+      await bot.equip(item, a.destination || 'hand'); if((a.destination||'hand')==='hand'&&'heldItem' in bot&&bot.heldItem&&bot.heldItem.name!==item.name)throw new Error(`equipaggiamento non verificato: ${item.name} non è in mano`); return `equipped ${item.name}`
     }
     case 'eat': {
       const food = bot.inventory.items().find(i => i.name === a.name) || bot.inventory.items().find(i => /bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon/.test(i.name))
