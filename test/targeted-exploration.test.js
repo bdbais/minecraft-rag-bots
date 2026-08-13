@@ -17,3 +17,23 @@ test('targeted exploration navigates to a visible redstone block', async () => {
   assert.equal(destination.y, 20)
   assert.match(result, /target redstone/)
 })
+
+test('targeted seed exploration collects visible grass once reached', async () => {
+  let destination, collected = false
+  const grass = { name: 'grass', type: 8, position: { x: 3, y: 20, z: 1 } }
+  const items = []
+  const bot = {
+    entity: { position: { x: 0, y: 20, z: 0 } },
+    registry: { blocksByName: { grass: { id: 8 } } },
+    entities: {},
+    inventory: { items: () => items },
+    findBlock: ({ matching }) => collected ? null : (matching(grass) ? grass : null),
+    collectBlock: { collect: async () => { collected = true; items.push({ name: 'wheat_seeds', count: 1 }) } },
+    pathfinder: { goto: async goal => { destination = goal } }
+  }
+  const result = await execute(bot, { action: 'explore', args: { seek: 'seeds', radius: 16 } })
+  assert.equal(destination.x, 3)
+  assert.equal(collected, true)
+  assert.equal(items[0].name, 'wheat_seeds')
+  assert.match(result, /raccolti|grass/i)
+})
