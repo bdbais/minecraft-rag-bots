@@ -324,7 +324,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if(!input)throw new Error('nessun materiale adatto da fondere nell’inventario')
       const fuel=bot.inventory.items().find(i=>/coal|charcoal|log|wood|planks|stick|lava_bucket/.test(i.name))
       if(!fuel)throw new Error('nessun combustibile disponibile')
-      const furnaceWindow=await bot.openFurnace(furnace);await furnaceWindow.putFuel(fuel.type,Math.min(fuel.count,Number(a.count)||input.count));await furnaceWindow.putInput(input.type,Math.min(input.count,Number(a.count)||input.count));await sleep(Math.min(2000,Math.max(500,Number(a.waitMs)||1000)));const output=typeof furnaceWindow.outputItem==='function'?furnaceWindow.outputItem():null;furnaceWindow.close();if(typeof furnaceWindow.outputItem==='function'&&(!output||!output.count))throw new Error(`fusione di ${input.name} avviata ma nessun output verificato`);return `avviata fusione di ${input.name}`
+      const furnaceWindow=await bot.openFurnace(furnace);await furnaceWindow.putFuel(fuel.type,Math.min(fuel.count,Number(a.count)||input.count));await furnaceWindow.putInput(input.type,Math.min(input.count,Number(a.count)||input.count));await sleep(Math.min(12000,Math.max(1000,Number(a.waitMs)||10000)));const output=typeof furnaceWindow.outputItem==='function'?furnaceWindow.outputItem():null;furnaceWindow.close();if(typeof furnaceWindow.outputItem==='function'&&(!output||!output.count))throw new Error(`fusione di ${input.name} avviata ma nessun output verificato`);return `avviata fusione di ${input.name}`
     }
     case 'sleep': {
       if(typeof bot.sleep!=='function')throw new Error('sonno non disponibile nel client Minecraft')
