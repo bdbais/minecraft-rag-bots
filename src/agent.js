@@ -18,7 +18,7 @@ This is a cooperative campaign with one shared final objective: defeat the Ender
 Crafting names: use crafting_table (not workbench), oak_planks/birch_planks/etc. (not plank), wooden_axe/stone_axe, color_bed such as white_bed, and chest. Generic plank/planks, workbench, axe, bed and container aliases are accepted and resolved from inventory. The craft action creates intermediate ingredients and, when required, creates, places and uses a crafting table automatically. Return schema-compliant JSON only.`
 
 export class Agent {
-  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map();this.helpRequests=new Map();this.strategyTrials={} }
+  constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map();this.helpRequests=new Map();this.strategyTrials={};this.recentActions=[] }
   instruct(text) { if (String(text).trim()) { this.instructions.push(String(text).trim()); this.interrupt('Nuova istruzione manuale') } }
   emit(type, payload = {}) { this.events[type]?.(payload) }
   async cancelAction() {
@@ -48,7 +48,7 @@ export class Agent {
     const generation = this.generation
     this.busy = true; this.phase = 'retrieval'; this.emit('status', { running: true })
     try {
-    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.profession=this.config.profession||'wanderer'; state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
+    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.profession=this.config.profession||'wanderer'; state.recentActions=this.recentActions.slice(-8); state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
     await this.config.onObservation?.(state)
     const worldKnowledge=typeof this.config.worldKnowledge==='function'?this.config.worldKnowledge():{}
     const query = `Goal: finish Minecraft. Current state: ${JSON.stringify(state)}`
@@ -121,7 +121,8 @@ if(!manual&&decision?.action==='chat'&&/ho trovato (?:uno spawner|spawner|un por
     let learned = null
     if (this.learner) learned = await this.learner.learn({ before: state, after, decision, manual, executionSuccess: success, result, step: this.steps })
     else {
-      const experience = `Human instruction: ${manual || 'none'}. Goal: ${decision.goal}. State: ${before}. Action: ${decision.action} ${JSON.stringify(decision.args)}. Result: ${success ? 'SUCCESS' : 'FAILURE'}: ${result}.`
+    this.recentActions.push({ action: decision.action, goal: decision.goal || '', target: decision.args?.poi || decision.args?.label || '', success, at: new Date().toISOString() }); if(this.recentActions.length>20)this.recentActions.shift()
+    const experience = `Human instruction: ${manual || 'none'}. Goal: ${decision.goal}. State: ${before}. Action: ${decision.action} ${JSON.stringify(decision.args)}. Result: ${success ? 'SUCCESS' : 'FAILURE'}: ${result}.`
       await this.memory.add(experience, { type: 'experience', success, action: decision.action, manualInstruction: manual || null })
     }
     const effectiveSuccess = learned ? learned.achieved : success
