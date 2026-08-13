@@ -21,6 +21,13 @@ test('autonomous planner attacks hostile mobs only when armed', () => {
   assert.equal(decision.args.target, 'zombie')
 })
 
+test('planner prioritizes an Ender Dragon in the End when armed',()=>{
+  const bot={inventory:{items:()=>[{name:'diamond_sword',count:1}]},game:{gameMode:'survival',dimension:'the_end'}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,dimension:'the_end',nearbyEntities:[{type:'mob',name:'ender_dragon'}],nearbyBlocks:[]})
+  assert.equal(decision.action,'attack_nearest')
+  assert.equal(decision.args.target,'ender_dragon')
+})
+
 test('attack_nearest does not select passive animals by default', async () => {
   const bot = {
     entity: { position: { distanceTo: () => 2 } }, entities: {},
