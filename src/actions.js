@@ -82,7 +82,9 @@ export async function craftItem(bot, name, count = 1, depth = 0) {
   }
   if (!recipe) throw new Error(`materiali insufficienti per ${name}`)
   const crafts = Math.ceil(wanted / Math.max(1, recipe.result.count || 1))
+  const beforeCraft=typeof bot.inventory?.count==='function'?itemCount(bot,item.id,null):null
   await bot.craft(recipe, crafts, table)
+  if(beforeCraft!==null&&itemCount(bot,item.id,null)<=beforeCraft)throw new Error(`crafting di ${name} completato dal client ma risultato non verificato nell’inventario`)
   return `crafted ${wanted} ${name}${table?' usando il banco da lavoro':''}`
 }
 
