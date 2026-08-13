@@ -256,9 +256,11 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'build_pen': {
       const material=bot.inventory.items().find(i=>/(_fence|cobblestone|stone|dirt|planks)$/.test(i.name)&&i.count>=8)
       if(!material)throw new Error('servono almeno 8 blocchi per costruire un recinto')
-      await bot.equip(material,'hand');const p=bot.entity.position.floored();let placed=0
-      for(const [dx,dz] of [[-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,-1],[2,-1],[-2,0],[2,0],[-2,1],[2,1],[-2,2],[-1,2],[0,2],[1,2],[2,2]]){const below=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!below||below.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(below,new Vec3(0,1,0));placed++}catch{}}
-      if(placed<4)throw new Error('recinto non costruibile nello spazio disponibile');return `recinto costruito: ${placed} elementi`
+      await bot.equip(material,'hand');const p=bot.entity.position.floored();let placed=0;const positions=[]
+      for(const [dx,dz] of [[-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,-1],[2,-1],[-2,0],[2,0],[-2,1],[2,1],[-2,2],[-1,2],[0,2],[1,2],[2,2]]){const below=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!below||below.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(below,new Vec3(0,1,0));positions.push(new Vec3(p.x+dx,p.y,p.z+dz));placed++}catch{}}
+      if(placed<4)throw new Error('recinto non costruibile nello spazio disponibile')
+      if(typeof bot.blockAt==='function'){const verified=positions.filter(pos=>{const block=bot.blockAt(pos);return block&&block.name&&!/^(air|cave_air|void_air)$/.test(block.name)});if(verified.length<4)throw new Error('recinto non verificato dopo il posizionamento')}
+      return `recinto costruito: ${placed} elementi`
     }
     case 'build_redstone_defense': {
       const torch=bot.inventory.items().find(i=>i.name==='redstone_torch'),trigger=bot.inventory.items().find(i=>/^(lever|stone_pressure_plate|oak_pressure_plate|spruce_pressure_plate|birch_pressure_plate)$/.test(i.name))
