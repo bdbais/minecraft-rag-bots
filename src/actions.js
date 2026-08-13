@@ -475,7 +475,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const shield=bot.inventory?.items?.().find(i=>i.name==='shield'); if(shield)try{await bot.equip(shield,'off-hand')}catch{}
       if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2))
-      onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `attacked ${target.name || target.username}`
+      onAttackTarget?.(target)
+      const verifiable=Number.isFinite(Number(target.health))||target.isValid!==undefined
+      for(let hit=0;hit<(verifiable?8:1);hit++){
+        if(target.isValid===false||Number(target.health)<=0)break
+        bot.attack(target);await sleep(350)
+        if(target.isValid===false||Number(target.health)<=0)break
+      }
+      if(Number.isFinite(Number(target.health))&&Number(target.health)>0&&target.isValid!==false)throw new Error(`bersaglio ${target.name||target.username} ancora vivo dopo l'attacco`)
+      await collectNearbyDrops(bot,16); return `attacked ${target.name || target.username}`
     }
     case 'hunt_nearest': {
       const edible = /cow|pig|chicken|sheep|rabbit|cod|salmon/i
@@ -484,7 +492,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const weapon=(bot.inventory?.items?.()||[]).filter(i=>/(_sword|_axe)$/.test(i.name)&&i.count>0).sort((a,b)=>/sword/.test(b.name)-/sword/.test(a.name)||/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name))[0]
       if(weapon&&typeof bot.equip==='function')await bot.equip(weapon,'hand')
       if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
-      await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
+      await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target)
+      const verifiable=Number.isFinite(Number(target.health))||target.isValid!==undefined
+      for(let hit=0;hit<(verifiable?8:1);hit++){
+        if(target.isValid===false||Number(target.health)<=0)break
+        bot.attack(target);await sleep(350)
+        if(target.isValid===false||Number(target.health)<=0)break
+      }
+      if(Number.isFinite(Number(target.health))&&Number(target.health)>0&&target.isValid!==false)throw new Error(`animale ${target.name||'bersaglio'} ancora vivo dopo la caccia`)
+      await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
     default: throw new Error(`unsupported action ${decision.action}`)
   }
