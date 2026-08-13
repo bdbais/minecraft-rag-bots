@@ -90,6 +90,7 @@ export class BotManager extends EventEmitter {
     const bot = mineflayer.createBot({...minecraftConnectionOptions(config, this.dataDir, code => this.emit('microsoft-code', code)),viewDistance:'far'})
     entry.bot = bot; bot.loadPlugin(pathfinder); bot.loadPlugin(collectBlock.plugin)
     bot.once('spawn', async () => {
+      entry.reconnectAttempts=0
       try {
         // Finestra di bootstrap: il client è già nel mondo ma memoria e AI non
         // sono ancora pronte. Blocchiamo ogni movimento residuo e vietiamo al
