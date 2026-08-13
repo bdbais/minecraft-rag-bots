@@ -233,7 +233,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         : []
       if(!crops.length)throw new Error('nessuna coltura matura raggiungibile')
       const before=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);let harvested=0
-      for(const crop of crops){try{await bot.pathfinder.goto(new goals.GoalNear(crop.position.x,crop.position.y,crop.position.z,2));await bot.dig(crop);harvested++}catch{}}
+      for(const crop of crops){try{await bot.pathfinder.goto(new goals.GoalNear(crop.position.x,crop.position.y,crop.position.z,2));await bot.dig(crop);harvested++;const seedName=crop.name==='wheat'?'wheat_seeds':crop.name==='beetroots'?'beetroot_seeds':crop.name==='carrots'?'carrot':crop.name==='potatoes'?'potato':null;const seed=seedName&&bot.inventory.items().find(i=>i.name===seedName&&i.count>0);const soil=seed&&bot.blockAt(new Vec3(crop.position.x,crop.position.y-1,crop.position.z));if(seed&&soil?.name==='farmland'&&typeof bot.equip==='function'&&typeof bot.placeBlock==='function'){try{await bot.equip(seed,'hand');await bot.placeBlock(soil,new Vec3(0,1,0))}catch{}}}catch{}}
       await sleep(450);const after=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);if(!harvested||after<=before)throw new Error('raccolta colture non verificata nell’inventario')
       return `raccolte ${harvested} colture mature`
     }
