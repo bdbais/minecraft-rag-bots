@@ -151,7 +151,17 @@ ipcMain.handle('bot:prompt', (_, { id, text }) => manager.prompt(id, text))
 ipcMain.handle('bot:prompt-all', (_, text) => manager.promptAll(text))
 ipcMain.handle('bot:create-child', (_, { parentAId, parentBId, options }) => manager.createChild(parentAId, parentBId, options))
 ipcMain.handle('bot:stop-all', () => manager.stopAll())
-ipcMain.handle('bot:start-all', () => manager.startAll())
+ipcMain.handle('bot:start-all', async () => {
+  const configs = await readConfigs()
+  let connected = 0
+  for (const cfg of configs) {
+    if (manager.entries.has(cfg.id)) continue
+    try { await manager.connect({ ...cfg, autoStart: false, cloudApiKey: cfg.aiProvider === 'cloud' ? await getApiKey(cfg.id) : '' }); connected++ }
+    catch (error) { manager.log?.(cfg.id, 'error', `Avvio globale non riuscito: ${error.message}`) }
+  }
+  const queued = manager.startAll()
+  return { connected, queued }
+})
 ipcMain.handle('map:get',async(_,id)=>{try{return manager.mapData(id)}catch{if(!/^[a-z0-9-]+$/i.test(id||''))throw new Error('Identificatore bot non valido');try{const data=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),`world-map-${id}.json`),'utf8'));let chests=[],lifetime=null;try{chests=Object.values(JSON.parse(await fs.readFile(path.join(app.getPath('userData'),`chests-${id}.json`),'utf8')))}catch{}try{const raw=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),`lifetime-${id}.json`),'utf8'));lifetime={distanceMeters:raw.distanceMeters||0,distanceKm:Math.round(raw.distanceMeters||0)/1000,playersEncountered:Object.keys(raw.playersEncountered||{}).length,botsEncountered:Object.keys(raw.botsEncountered||{}).length,animalsKilled:raw.animalsKilled||0,materialsCollected:raw.materialsCollected||0,topMaterials:Object.entries(raw.collectedByType||{}).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,count])=>({name,count}))}}catch{}return{cellSize:data.cellSize||4,cells:Object.values(data.cells||{}),trail:data.trail||[],position:data.trail?.at(-1)||null,chests,pois:Object.values(data.pois||{}),lifetime}}catch{throw new Error('La mappa sarà disponibile dopo che il bot avrà esplorato il mondo')}}})
 ipcMain.handle('benchmark:export',async(_,id)=>{const report=manager.benchmarkReport(id);let gpu={},ollama=[];try{gpu=await app.getGPUInfo('basic')}catch{}try{const response=await fetch('http://localhost:11434/api/ps',{signal:AbortSignal.timeout(3000)});if(response.ok)ollama=(await response.json()).models||[]}catch{}report.hardware={platform:`${os.platform()} ${os.release()} ${os.arch()}`,cpu:os.cpus()[0]?.model||'unknown',logicalCpuCount:os.cpus().length,ramBytes:os.totalmem(),gpu:gpu.gpuDevice||[],ollamaLoadedModels:ollama.map(x=>({name:x.name,size:x.size,sizeVram:x.size_vram,contextLength:x.context_length}))};report.appVersion=app.getVersion();const result=await dialog.showSaveDialog(win,{title:'Esporta benchmark bot',defaultPath:`${report.bot.name.replace(/[^a-z0-9_-]/gi,'_')}-${report.performance.version}-benchmark.json`,filters:[{name:'Benchmark JSON',extensions:['json']}]});if(result.canceled||!result.filePath)return false;await fs.writeFile(result.filePath,JSON.stringify(report,null,2));return true})
 ipcMain.handle('technical-log:copy',async(_,id)=>{const report=await manager.technicalReport(id);report.startup=manager.snapshot(id)?.startup||null;clipboard.writeText(JSON.stringify(report,null,2));return report.logs.length})
