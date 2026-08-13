@@ -37,3 +37,8 @@ test('farmer profession harvests a mature field proactively', () => {
   assert.equal(decision.action, 'move_to')
   assert.equal(decision.args.poi, 'village')
 }) */
+
+test('builder profession establishes a shelter before exploration', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'oak_planks', count: 16 }]), { profession: 'builder', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
+  assert.equal(decision.action, 'build_shelter')
+})
