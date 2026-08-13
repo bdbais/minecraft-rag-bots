@@ -178,10 +178,12 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       return `raggiunta posizione ${x},${y},${z} (distanza ${distance.toFixed(1)})`
     }
     case 'explore': {
-      const radius=Math.max(8,Math.min(Number(a.radius)||18,40)),angle=Math.random()*Math.PI*2,p=bot.entity.position
+      const radius=Math.max(8,Math.min(Number(a.radius)||18,40)),p=bot.entity.position
+      // Le pattuglie seguono settori ripetibili: coprono il perimetro invece di scegliere una direzione casuale.
+      const sector=a.patrol?Number(a.sector||0)%8:Math.random()*8,angle=sector*(Math.PI/4)
       const x=Math.floor(p.x+Math.cos(angle)*radius),z=Math.floor(p.z+Math.sin(angle)*radius)
       if(bot.registry?.blocksByName&&bot.pathfinder?.setMovements){const movement=new Movements(bot);movement.canDig=false;movement.blocksToAvoid=new Set([bot.registry.blocksByName.lava?.id,bot.registry.blocksByName.water?.id].filter(Number.isInteger));bot.pathfinder.setMovements(movement)}
-      await bot.pathfinder.goto(new goals.GoalXZ(x,z));return `esplorata la zona verso ${x},${z}`
+      await bot.pathfinder.goto(new goals.GoalXZ(x,z));if(a.patrol)await onShareCheckpoint?.({type:'patrol',label:'Settore pattuglia controllato',x,y:Math.floor(bot.entity.position.y),z,dimension:bot.game?.dimension,note:`settore ${Math.round(sector)} controllato`,source:'warrior'});return `esplorata la zona verso ${x},${z}`
     }
     case 'follow_player': {
       const username = String(a.username || '')
