@@ -346,6 +346,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const requested = String(a.target || a.name || '').toLowerCase()
       const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < 16 && ((e.type === 'mob' && (requested ? String(e.name || '').toLowerCase() === requested : hostile.test(e.name || ''))) || (allowPvp && e.type === 'player' && e.username !== bot.username)))
       if (!target) throw new Error('no allowed nearby target')
+      const weapons=(bot.inventory?.items?.()||[]).filter(i=>/(_sword|_axe|bow|crossbow)$/.test(i.name)&&i.count>0).sort((a,b)=>/sword/.test(b.name)-/sword/.test(a.name)||/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name));
+      if(weapons[0]&&typeof bot.equip==='function')await bot.equip(weapons[0],'hand')
       const shield=bot.inventory?.items?.().find(i=>i.name==='shield'); if(shield)try{await bot.equip(shield,'off-hand')}catch{}
       if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2))

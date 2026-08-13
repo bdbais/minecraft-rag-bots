@@ -30,3 +30,10 @@ test('attack_nearest equips a shield in the off hand when available', async () =
   await execute(bot, { action: 'attack_nearest', args: {} })
   assert.equal(destination, 'off-hand')
 })
+
+test('attack_nearest equips the best weapon before approaching target', async () => {
+  const slots=[]; const target={type:'mob',name:'zombie',position:{distanceTo:()=>2}}
+  const bot={entity:{position:{distanceTo:()=>2}},inventory:{items:()=>[{name:'stone_sword',count:1}]},nearestEntity:()=>target,equip:async(item,slot)=>slots.push([item.name,slot]),pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{}}
+  await execute(bot,{action:'attack_nearest',args:{}})
+  assert.deepEqual(slots,[['stone_sword','hand']])
+})
