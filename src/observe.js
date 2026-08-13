@@ -1,5 +1,5 @@
 const cache=new WeakMap()
-const strategic=name=>/(_ore|_log|_wood|_stem|_hyphae|ancient_debris|chest|barrel|crafting_table|furnace|smoker|anvil|enchanting_table|brewing_stand|spawner|portal|end_gateway|fortress|bastion|lava|water|_sign)$/.test(name||'')
+const strategic=name=>/(_ore|_log|_wood|_stem|_hyphae|ancient_debris|chest|barrel|crafting_table|furnace|smoker|anvil|enchanting_table|brewing_stand|spawner|portal|end_gateway|fortress|bastion|stronghold|end_portal|lava|water|_sign)$/.test(name||'')
 function scan(bot,p,radius){const old=cache.get(bot);if(old&&old.radius===radius&&Date.now()-old.at<2500&&old.position.distanceTo(p)<4)return old.data
   const nearby=[...new Set(bot.findBlocks({matching:()=>true,maxDistance:Math.min(16,radius),count:120}).map(pos=>bot.blockAt(pos)?.name).filter(Boolean))].slice(0,40)
   const targets=bot.findBlocks({matching:b=>strategic(b?.name),maxDistance:radius,count:120}).map(pos=>{const b=bot.blockAt(pos);return b&&{name:b.name,x:Math.floor(pos.x),y:Math.floor(pos.y),z:Math.floor(pos.z),distance:Math.round(pos.distanceTo(p))}}).filter(Boolean).sort((a,b)=>a.distance-b.distance).slice(0,80)
