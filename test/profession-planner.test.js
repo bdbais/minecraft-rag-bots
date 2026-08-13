@@ -65,6 +65,11 @@ test('armed warrior patrols a sheltered base perimeter', () => {
   assert.equal(decision.action, 'explore')
   assert.equal(decision.args.patrol, true)
 })
+test('warrior patrol advances to the next recorded sector', () => {
+  const checkpoints = Array.from({ length: 3 }, (_, i) => ({ type: 'patrol', label: `Settore ${i}` }))
+  const decision = autonomousProgressionDecision(bot([{ name: 'iron_sword', count: 1 }, { name: 'shield', count: 1 }]), { profession: 'warrior', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'base', label: 'Base protetta' }, ...checkpoints])
+  assert.equal(decision.args.sector, 3)
+})
 test('warrior profession crafts a shield before patrol', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'iron_sword', count: 1 }, { name: 'iron_ingot', count: 1 }, { name: 'oak_planks', count: 1 }, { name: 'crafting_table', count: 1 }]), { profession: 'warrior', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'base', label: 'Base protetta' }])
   assert.equal(decision.action, 'craft')
