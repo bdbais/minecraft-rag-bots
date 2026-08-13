@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'activate_end_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -435,6 +435,21 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await onShareCheckpoint?.({type:'portal',label:`Ingresso ${afterDimension.includes('nether')?'Nether':'dimensione'} raggiunto`,x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z),dimension:afterDimension,source:'nether'})
       return `portale attraversato: ${beforeDimension||'overworld'} → ${afterDimension}`
     }
+    case 'activate_end_portal': {
+      if(typeof bot.activateBlock!=='function')throw new Error('il client non supporta l’attivazione dei telai del portale End')
+      const eye=bot.inventory?.items?.().find(i=>i.name==='ender_eye'&&i.count>0);if(!eye)throw new Error('servono Eyes of Ender per completare il portale')
+      const frames=typeof bot.findBlocks==='function'?bot.findBlocks({matching:b=>b?.name==='end_portal_frame',maxDistance:12,count:12}).map(p=>bot.blockAt(p)).filter(Boolean):[]
+      if(frames.length<1)throw new Error('nessun telaio del portale End raggiungibile')
+      await bot.equip(eye,'hand');let filled=0
+      for(const frame of frames){
+        const state=frame.getProperties?.();if(state?.eye||state?.has_eye)continue
+        try{await bot.pathfinder.goto(new goals.GoalNear(frame.position.x,frame.position.y,frame.position.z,2));await bot.activateBlock(frame);filled++;await sleep(120)}catch{}
+      }
+      const portal=bot.findBlock?.({matching:b=>b?.name==='end_portal',maxDistance:12})
+      if(!portal)throw new Error(`portale End non attivo dopo ${filled} telai riempiti`)
+      await onShareCheckpoint?.({type:'end_portal',label:'Portale End attivo',x:portal.position.x,y:portal.position.y,z:portal.position.z,dimension:bot.game?.dimension,source:'end'})
+      return `portale End attivato: ${filled} telai completati`
+    }
     case 'build_shelter': {
       const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
       if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
@@ -607,6 +622,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const blazeRod=inventoryTotal(bot,x=>x.name==='blaze_rod'), blazePowder=inventoryTotal(bot,x=>x.name==='blaze_powder'), pearls=inventoryTotal(bot,x=>x.name==='ender_pearl'), eyes=inventoryTotal(bot,x=>x.name==='ender_eye')
   if(table&&blazeRod>0&&blazePowder<4)return{thought:'Nether: convertire le blaze rod in polvere prima di cercare la stronghold.',goal:'trasformare blaze rod in blaze powder',action:'craft',args:{name:'blaze_powder',count:Math.min(4,blazeRod)},expected:'polvere di blaze nell’inventario'}
   if(table&&blazePowder>0&&pearls>0&&eyes<12)return{thought:'Campagna End: preparare una scorta affidabile di Eyes of Ender.',goal:'craftare Eyes of Ender per cercare la stronghold',action:'craft',args:{name:'ender_eye',count:Math.min(4,blazePowder,pearls,12-eyes)},expected:'Eyes of Ender nell’inventario'}
+  const endFrameVisible=nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='end_portal_frame')||visibleTargets.some(x=>/end_portal_frame/i.test(String(x?.name||'')))
+  if(eyes>=12&&endFrameVisible)return{thought:'Campagna End: sono vicino ai telai e ho abbastanza Eyes of Ender.',goal:'completare e attivare il portale dell’End',action:'activate_end_portal',args:{},expected:'blocco end_portal verificato e checkpoint condiviso'}
   const obsidian=inventoryTotal(bot,x=>x.name==='obsidian'),portalKnown=checkpoints.some(x=>x.type==='portal'||/portal nether/i.test(x.label||''))
   if(!portalKnown&&obsidian>=10&&has('flint_and_steel'))return{thought:'Preparazione Nether: ossidiana e acciarino pronti per un portale.',goal:'costruire e accendere il portale del Nether',action:'build_portal',args:{},expected:'portale Nether costruito e checkpoint condiviso'}
   const furnaceNear=nearbyBlocks.some(x=>/^(furnace|blast_furnace|smoker)$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
