@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { autonomousProgressionDecision } from '../src/actions.js'
+import { autonomousProgressionDecision, checkpointDistanceFrom } from '../src/actions.js'
 
 test('planner ignores checkpoints from another dimension',()=>{
   const bot={game:{dimension:'the_nether'},inventory:{items:()=>[
@@ -13,4 +13,9 @@ test('planner ignores checkpoints from another dimension',()=>{
   ])
   assert.notEqual(decision.action,'move_to')
   assert.notEqual(decision.args?.poi,'Miniera Overworld')
+})
+
+test('checkpoint distance ignores stale serialized distance',()=>{
+  assert.equal(checkpointDistanceFrom({x:0,z:0},{x:8,z:0,distance:999}),8)
+  assert.equal(checkpointDistanceFrom(null,{x:8,z:0,distance:12}),12)
 })

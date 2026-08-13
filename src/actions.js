@@ -9,6 +9,7 @@ const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
 const inventoryTotal=(bot,filter=()=>true)=>(bot.inventory?.items?.()||[]).filter(filter).reduce((n,x)=>n+(x.count||0),0)
+export function checkpointDistanceFrom(origin, checkpoint) { return origin ? Math.hypot(Number(checkpoint.x)-origin.x, Number(checkpoint.z)-origin.z) : Number.isFinite(Number(checkpoint.distance)) ? Number(checkpoint.distance) : 999 }
 const protectedBlock=/^(crafting_table|furnace|chest|barrel|bed|.*_bed|door|.*_door|farmland|.*_crop|water|lava)$/i
 export function simulateLavaDefense(bot, origin, {maxCells=24, minDistance=4}={}) {
   const start=new Vec3(Math.floor(origin.x),Math.floor(origin.y),Math.floor(origin.z)), queue=[start], seen=new Set(), cells=[], unsafe=[]
@@ -563,7 +564,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const priorityTarget=visibleTargets.filter(x=>x&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&!/^(lava|water)$/.test(String(x.name||''))&&(!/spawner|end_gateway|portal/.test(String(x.name||''))||armed)).sort((a,b)=>{const score=x=>/portal|end_gateway|ancient_debris|spawner/.test(x.name)?0:/diamond_ore|iron_ore|gold_ore|chest|barrel|furnace|crafting_table/.test(x.name)?1:2;return score(a)-score(b)||Number(a.distance||999)-Number(b.distance||999)})[0]
   if(priorityTarget&&Number(priorityTarget.distance||999)<=48)return{thought:`Obiettivo visibile: ${priorityTarget.name} può sbloccare una nuova fase della spedizione.`,goal:`raggiungere ${priorityTarget.name} individuato nella mappa`,action:'move_to',args:{x:priorityTarget.x,y:priorityTarget.y,z:priorityTarget.z,range:2,poi:priorityTarget.name},expected:`raggiungere il punto di interesse ${priorityTarget.name}`}
   const origin=bot.entity?.position
-  const checkpointDistance=x=>Number.isFinite(Number(x.distance))?Number(x.distance):origin?Math.hypot(Number(x.x)-origin.x,Number(x.z)-origin.z):999
+  const checkpointDistance=x=>checkpointDistanceFrom(origin,x)
   const dimension=String(bot.game?.dimension||'overworld')
   const teamTarget=checkpoints.filter(x=>x&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&(!x.dimension||String(x.dimension)===dimension)&&!/danger|lava|water/i.test(`${x.type||''} ${x.label||''}`)&&checkpointDistance(x)>4).sort((a,b)=>checkpointDistance(a)-checkpointDistance(b))[0]
   if(teamTarget)return{thought:`Coordinamento: raggiungere il checkpoint condiviso ${teamTarget.label||teamTarget.type}.`,goal:`raggiungere il checkpoint di squadra ${teamTarget.label||teamTarget.type}`,action:'move_to',args:{x:teamTarget.x,y:teamTarget.y,z:teamTarget.z,range:3,poi:teamTarget.label||teamTarget.type},expected:'checkpoint di squadra raggiunto'}
