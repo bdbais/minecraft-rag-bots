@@ -485,6 +485,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const floor=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),lower=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)),upper=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz));if(!floor||floor.boundingBox!=='block'||!lower||!upper||!/^(air|cave_air|void_air)$/.test(lower.name)||!/^(air|cave_air|void_air)$/.test(upper.name))continue;try{await bot.placeBlock(floor,new Vec3(0,1,0));bottom=new Vec3(p.x+dx,p.y,p.z+dz);break}catch{}}
       if(!bottom)throw new Error('nessuno spazio sicuro per posizionare la porta')
       await sleep(250);const lower=bot.blockAt(bottom),upper=bot.blockAt(new Vec3(bottom.x,bottom.y+1,bottom.z));if(!/_door$/.test(lower?.name||'')&&!/_door$/.test(upper?.name||''))throw new Error('porta non verificata dopo il posizionamento')
+      await onShareCheckpoint?.({type:'shelter_entrance',label:'Ingresso protetto',x:bottom.x,y:bottom.y,z:bottom.z,dimension:bot.game?.dimension,note:'porta verificata: punto di rientro sicuro',source:'shelter'})
       return `porta costruita a ${bottom.x},${bottom.y},${bottom.z}`
     }
     case 'build_portal': {
