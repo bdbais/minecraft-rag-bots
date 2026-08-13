@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-export const checkpointTypes = new Set(['chest','mine','dungeon','monster','resource','danger','base','portal','workstation','other'])
+export const checkpointTypes = new Set(['chest','mine','dungeon','monster','resource','danger','base','portal','workstation','memorial','pen','frontier','village','other'])
 const number = value => Number.isFinite(Number(value)) ? Math.floor(Number(value)) : null
 
 export class TeamCheckpoints {
