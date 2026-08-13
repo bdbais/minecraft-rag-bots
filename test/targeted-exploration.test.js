@@ -37,3 +37,19 @@ test('targeted seed exploration collects visible grass once reached', async () =
   assert.equal(items[0].name, 'wheat_seeds')
   assert.match(result, /raccolti|grass/i)
 })
+
+test('targeted water exploration reaches a visible source', async () => {
+  let destination
+  const water = { name: 'water', type: 9, position: { x: -5, y: 63, z: 4 } }
+  const bot = {
+    entity: { position: { x: 0, y: 64, z: 0 } },
+    registry: { blocksByName: { water: { id: 9 } } },
+    entities: {},
+    findBlock: ({ matching }) => matching(water) ? water : null,
+    pathfinder: { goto: async goal => { destination = goal } }
+  }
+  const result = await execute(bot, { action: 'explore', args: { seek: 'water', radius: 16 } })
+  assert.equal(destination.x, -5)
+  assert.equal(destination.z, 4)
+  assert.match(result, /target water/)
+})
