@@ -36,6 +36,11 @@ test('breeder profession searches for animals before building a pen', () => {
   assert.equal(decision.action, 'explore')
   assert.match(decision.goal, /animali/i)
 })
+test('warrior profession crafts a weapon before patrol', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'cobblestone', count: 3 }, { name: 'stick', count: 2 }, { name: 'crafting_table', count: 1 }]), { profession: 'warrior', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
+  assert.equal(decision.action, 'craft')
+  assert.equal(decision.args.name, 'sword')
+})
 
 /* test('explorer profession chooses a visible discovery instead of random wandering', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'oak_log', count: 8 }, { name: 'crafting_table', count: 1 }, { name: 'wooden_pickaxe', count: 1 }, { name: 'wooden_axe', count: 1 }, { name: 'wooden_shovel', count: 1 }, { name: 'chest', count: 1 }, { name: 'furnace', count: 1 }, { name: 'torch', count: 16 }, { name: 'cobblestone', count: 16 }]), { profession: 'explorer', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [], visibleTargets: [{ name: 'village', x: 12, y: 64, z: -4, distance: 12 }] }, [])
