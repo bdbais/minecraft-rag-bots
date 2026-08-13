@@ -10,6 +10,13 @@ export function campaignState(observation = {}, checkpoints = []) {
   if (blaze >= 4 && pearls >= 4) { phase = 'eyes'; objective = 'crea Eyes of Ender e segui la stronghold'; completion = 65 }
   if (eyes >= 4 || hasStronghold) { phase = 'stronghold'; objective = 'localizza la stanza del portale e prepara la spedizione'; completion = 80 }
   if (hasStronghold && (has('bow') || has('diamond_sword') || has('iron_sword'))) { phase = 'end_assault'; objective = 'entra nell’End, distruggi i cristalli e coordina l’attacco al Drago'; completion = 95 }
-  if (victory) { phase = 'completed'; objective = 'preserva la memoria della vittoria e cerca nuove sfide per la comunità'; completion = 100 }
-  return { phase, objective, completion, resources: { logs, food, fish, iron, blaze, pearls, eyes }, nextChecks: ['un’azione deve cambiare inventario, posizione o checkpoint', 'se fallisce due volte cambia strategia e informa la squadra'] }
+  const postVictoryChallenges = victory ? [
+    { id: 'memorial', title: 'costruire un memoriale per i caduti', roles: ['priest', 'nun', 'builder'] },
+    { id: 'settlement', title: 'fondare o ampliare un villaggio della comunità', roles: ['builder', 'trader', 'wanderer'] },
+    { id: 'redstone', title: 'installare una difesa redstone verificabile', roles: ['scientist', 'warrior', 'builder'] },
+    { id: 'husbandry', title: 'creare un allevamento autosufficiente', roles: ['farmer', 'breeder'] },
+    { id: 'frontier', title: 'esplorare una nuova frontiera e condividere i checkpoint', roles: ['explorer', 'hunter', 'fisher'] }
+  ] : []
+  if (victory) { phase = 'completed'; objective = 'preserva la memoria della vittoria e scegli una nuova sfida per la comunità'; completion = 100 }
+  return { phase, objective, completion, resources: { logs, food, fish, iron, blaze, pearls, eyes }, postVictoryChallenges, nextChecks: ['un’azione deve cambiare inventario, posizione o checkpoint', 'se fallisce due volte cambia strategia e informa la squadra'] }
 }
