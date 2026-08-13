@@ -69,6 +69,11 @@ test('breeder profession crafts fence materials before building a pen', () => {
   assert.equal(decision.action, 'craft')
   assert.equal(decision.args.name, 'fence')
 })
+test('breeder searches for feed after building a pen', () => {
+  const decision = autonomousProgressionDecision(bot([]), { profession: 'breeder', health: 20, food: 20, nearbyEntities: [{ type: 'mob', name: 'cow' }, { type: 'mob', name: 'cow' }], nearbyBlocks: [] }, [{ type: 'pen', label: 'Recinto allevamento' }])
+  assert.equal(decision.action, 'explore')
+  assert.equal(decision.args.seek, 'seeds')
+})
 test('warrior profession crafts a weapon before patrol', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'cobblestone', count: 3 }, { name: 'stick', count: 2 }, { name: 'crafting_table', count: 1 }]), { profession: 'warrior', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
   assert.equal(decision.action, 'craft')
