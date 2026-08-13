@@ -497,7 +497,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const hostile = /zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker|ender_dragon|end_crystal/i
       const requested = String(a.target || a.name || '').toLowerCase()
       const endAssault = /ender_dragon|end_crystal/.test(requested)
-      const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < (endAssault ? 64 : 16) && ((e.type === 'mob' && (requested ? String(e.name || '').toLowerCase() === requested : hostile.test(e.name || ''))) || (allowPvp && e.type === 'player' && e.username !== bot.username)))
+      const target = bot.nearestEntity(e => e.position.distanceTo(bot.entity.position) < (endAssault ? 64 : 16) && ((((e.type === 'mob') || (requested === 'end_crystal' && String(e.name || '').toLowerCase() === 'end_crystal')) && (requested ? String(e.name || '').toLowerCase() === requested : hostile.test(e.name || ''))) || (allowPvp && e.type === 'player' && e.username !== bot.username)))
       if (!target) throw new Error('no allowed nearby target')
       const weapons=(bot.inventory?.items?.()||[]).filter(i=>/(_sword|_axe|bow|crossbow)$/.test(i.name)&&i.count>0).sort((a,b)=>/sword/.test(b.name)-/sword/.test(a.name)||/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name));
       if(weapons[0]&&typeof bot.equip==='function')await bot.equip(weapons[0],'hand')
