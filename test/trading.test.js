@@ -16,3 +16,9 @@ test('trade verifies that the villager output enters the inventory', async () =>
   const result=await execute(bot,{action:'trade',args:{times:1}})
   assert.match(result,/emerald/)
 })
+
+test('scientist selects verified enchanting when a table, tool and lapis are available', () => {
+  const bot={inventory:{items:()=>[{name:'diamond_pickaxe',count:1},{name:'lapis_lazuli',count:3}]},game:{dimension:'overworld'},findBlock:()=>({name:'enchanting_table',position:{x:1,y:64,z:0}}),openEnchantmentTable:async()=>{}}
+  const decision=autonomousProgressionDecision(bot,{profession:'scientist',health:20,food:20,nearbyEntities:[],nearbyBlocks:[]},[])
+  assert.equal(decision.action,'enchant')
+})
