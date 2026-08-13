@@ -86,6 +86,11 @@ test('builder profession establishes a shelter before exploration', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'oak_planks', count: 16 }]), { profession: 'builder', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
   assert.equal(decision.action, 'build_shelter')
 })
+test('builder profession prepares storage after shelter', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'oak_planks', count: 8 }, { name: 'crafting_table', count: 1 }]), { profession: 'builder', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'base', label: 'Riparo costruito' }])
+  assert.equal(decision.action, 'craft')
+  assert.equal(decision.args.name, 'chest')
+})
 
 test('fisher profession fishes near water when a rod is available', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'fishing_rod', count: 1 }, { name: 'oak_log', count: 8 }, { name: 'crafting_table', count: 1 }, { name: 'wooden_pickaxe', count: 1 }, { name: 'wooden_axe', count: 1 }, { name: 'wooden_shovel', count: 1 }, { name: 'chest', count: 1 }, { name: 'torch', count: 16 }, { name: 'cobblestone', count: 16 }]), { profession: 'fisher', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['water'] }, [])
