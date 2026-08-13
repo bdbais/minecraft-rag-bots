@@ -10,6 +10,15 @@ test('store_items places an available chest when no container is nearby', async 
   assert.match(result,/depositati/);assert.equal(placed,true);assert.equal(deposited,1)
 })
 
+test('loot_storage withdraws only useful supplies and shares the chest', async () => {
+  let withdrawn=0, shared=null
+  const contents=[{name:'bread',type:1,count:4,metadata:0},{name:'dirt',type:2,count:8,metadata:0}]
+  let hasBread=false
+  const bot={entity:{position:{floored:()=>({x:2,y:64,z:2})}},inventory:{items:()=>hasBread?[{name:'stone_pickaxe',count:1},{name:'bread',count:4}]:[{name:'stone_pickaxe',count:1}]},findBlock:()=>({name:'chest',position:{x:3,y:64,z:2}}),pathfinder:{goto:async()=>{}},openContainer:async()=>({containerItems:()=>contents,withdraw:async(type,meta,count)=>{withdrawn+=count;hasBread=true},close:()=>{}}),game:{dimension:'overworld'}}
+  const result=await execute(bot,{action:'loot_storage',args:{maxItems:8}},{onStorageSeen:async()=>{},onShareCheckpoint:async x=>{shared=x}})
+  assert.match(result,/prelevati/);assert.equal(withdrawn,4);assert.equal(shared.type,'chest')
+})
+
 test('planner deposits when inventory slots are full even with many small stacks',()=>{
   const slots=Array.from({length:30},(_,i)=>({name:i===0?'stone_pickaxe':`material_${i}`,count:1}))
   const bot={inventory:{slots,items:()=>slots},game:{gameMode:'survival'}}

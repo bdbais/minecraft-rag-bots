@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'activate_end_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'enter_portal', 'activate_end_portal', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'loot_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -304,6 +304,16 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const container=await bot.openContainer(block);const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();await onStorageSeen?.(block.position,contents,block.name)
       return `ispezionato ${block.name} a ${block.position.x},${block.position.y},${block.position.z}: ${contents.map(x=>`${x.name} x${x.count}`).join(', ')||'vuoto'}`
     }
+    case 'loot_storage': {
+      const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||32,48)})
+      if(!block)throw new Error('nessuna chest o barrel visibile')
+      await bot.pathfinder.goto(new goals.GoalNear(block.position.x,block.position.y,block.position.z,3))
+      const inv=bot.inventory?.items?.()||[], total=name=>inv.reduce((n,i)=>n+(new RegExp(name,'i').test(i.name)?i.count:0),0), food=total('bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon|cod|salmon')
+      const needed=name=>/food|bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon|cod|salmon/i.test(name)&&food<8 || /pickaxe|axe|shovel|sword|shield|torch|crafting_table|chest|planks|_log|_wood|stone|cobblestone|iron_ingot/i.test(name)
+      const container=await bot.openContainer(block), before=bot.inventory?.items?.().reduce((n,i)=>n+i.count,0)||0;let taken=0
+      for(const item of container.containerItems().sort((a,b)=>Number(needed(b.name))-Number(needed(a.name)))){if(!needed(item.name)||taken>=Number(a.maxItems)||0)continue;try{const count=Math.min(item.count,Math.max(1,Number(a.maxPerStack)||item.count));await container.withdraw(item.type,item.metadata,count);taken+=count}catch{}}
+      const contents=container.containerItems().map(i=>({name:i.name,count:i.count}));container.close();const after=bot.inventory?.items?.().reduce((n,i)=>n+i.count,0)||0;await onStorageSeen?.(block.position,contents,block.name);if(after<=before||!taken)throw new Error('nessun materiale utile prelevabile dalla chest');await onShareCheckpoint?.({type:'chest',label:'Deposito condiviso',x:block.position.x,y:block.position.y,z:block.position.z,dimension:bot.game?.dimension,note:`${taken} oggetti utili disponibili alla squadra`,source:'storage'});return `prelevati ${taken} oggetti utili da ${block.name}`
+    }
     case 'store_items': {
       let block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:Math.min(Number(a.maxDistance)||32,48)})
       if(!block){
@@ -590,7 +600,10 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(profession==='breeder'&&farmAnimals.length>=2&&hasPen&&!breedFeed)return{thought:'Allevamento: recinto pronto ma manca mangime, cercare colture per poter nutrire la coppia.',goal:'trovare grano o carote per avviare la riproduzione',action:'explore',args:{radius:28,seek:'seeds'},expected:'mangime individuato e riportato al recinto'}
   if(farmAnimals.length>=2&&hasPen&&!recentlyBred&&items.some(x=>/wheat|carrot|potato|beetroot|seeds/.test(x.name)))return{thought:'Allevamento: recinto verificato, animali e cibo disponibili.',goal:'avviare un allevamento protetto',action:'breed_animals',args:{species:farmAnimals[0].name},expected:'due animali nutriti'}
   if(items.length>=20||occupiedSlots>=30)return{thought:'Inventario quasi pieno: gli slot occupati superano la soglia sicura.',goal:'organizzare le risorse in un contenitore sicuro',action:'store_items',args:{maxDistance:32},expected:'materiali depositati e inventario ottimizzato'}
-  if(nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Memoria automatica: ispezionare il contenitore vicino.',goal:'leggere il contenuto della chest',action:'inspect_storage',args:{},expected:'contenuto registrato nella memoria'}
+  const nearbyStorage=nearbyBlocks.some(x=>/^(chest|trapped_chest|barrel)$/.test(typeof x==='string'?x:x?.name||''))
+  const needsSupplies=Number(observation.food||20)<8||!items.some(x=>/_pickaxe$|_axe$|crafting_table|torch$/.test(x.name))||!items.some(x=>/(_log|_wood|_planks|stone|cobblestone|iron_ingot)$/.test(x.name))
+  if(nearbyStorage&&needsSupplies)return{thought:'Rifornimento prudente: una chest vicina può contenere cibo o strumenti necessari.',goal:'recuperare solo risorse utili dal deposito condiviso',action:'loot_storage',args:{maxDistance:32,maxItems:16},expected:'inventario arricchito con materiali utili e contenuto registrato'}
+  if(nearbyStorage)return{thought:'Memoria automatica: ispezionare il contenitore vicino.',goal:'leggere il contenuto della chest',action:'inspect_storage',args:{},expected:'contenuto registrato nella memoria'}
   if(Number(observation.health)>0&&Number(observation.health)<6&&!food)return{thought:'Emergenza: salute critica senza cibo.',goal:'raggiungere una posizione sicura e chiedere aiuto',action:'escape_hazard',args:{},expected:'uscire dal pericolo senza costruire'}
   if(profession==='builder'&&!sheltered&&items.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)))return{thought:'Professione costruttore: stabilire una base sicura prima di allontanarsi.',goal:'costruire e registrare un riparo per la comunità',action:'build_shelter',args:{},expected:'riparo costruito e checkpoint condiviso'}
   const sharedStorage=has('chest')||checkpoints.some(x=>x&&(/^(chest|storage)$/.test(String(x.type||''))||/deposito|chest|storage/i.test(x.label||'')))
