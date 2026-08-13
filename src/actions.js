@@ -204,6 +204,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const before=item.count;await bot.toss(item.type, item.metadata, count);await sleep(250)
       const remaining=bot.inventory.items().filter(i=>i.name===item.name).reduce((sum,i)=>sum+(Number(i.count)||0),0);if(remaining>=before)throw new Error(`condivisione non verificata: ${item.name} è ancora intatto nell’inventario`)
       await onSocial?.(username,{karma:Math.min(1,count*0.05),good:true,memory:`ha condiviso ${count} ${item.name}`})
+      if(/bread|apple|beef|porkchop|chicken|mutton|carrot|potato|cod|salmon/.test(item.name)&&player.position)await onShareCheckpoint?.({type:'resource',label:`Punto soccorso: ${username}`,x:player.position.x,y:player.position.y,z:player.position.z,dimension:bot.game?.dimension,note:`razione ${item.name} consegnata e verificata`,source:'rescue'})
       return `gave ${count} ${item.name} to ${username}`
     }
     case 'share_checkpoint': {
