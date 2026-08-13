@@ -20,3 +20,8 @@ test('autonomous planner escapes when observation reports fluid occupancy', () =
   const decision = autonomousProgressionDecision(base([{ name: 'stone_pickaxe', count: 1 }]), { health: 20, food: 20, inFluid: true, feetBlock: 'water', headBlock: 'water', nearbyEntities: [], nearbyBlocks: [] })
   assert.equal(decision.action, 'escape_hazard')
 })
+
+test('autonomous planner escapes before drowning when oxygen is almost empty', () => {
+  const decision = autonomousProgressionDecision(base([{ name: 'stone_pickaxe', count: 1 }]), { health: 20, food: 20, oxygen: 3, nearbyEntities: [], nearbyBlocks: ['water'] })
+  assert.equal(decision.action, 'escape_hazard')
+})
