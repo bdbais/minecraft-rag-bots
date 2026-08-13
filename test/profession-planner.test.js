@@ -45,6 +45,10 @@ test('farmer profession prepares a composter at the base', () => {
   assert.equal(decision.action, 'craft')
   assert.equal(decision.args.name, 'composter')
 })
+test('farmer does not recraft a composter recorded by the team', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'oak_planks', count: 8 }, { name: 'crafting_table', count: 1 }]), { profession: 'farmer', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'base', label: 'Base agricola' }, { type: 'workstation', label: 'Composter agricolo' }])
+  assert.notEqual(decision.args?.name, 'composter')
+})
 test('breeder profession searches for animals before building a pen', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'wheat', count: 8 }]), { profession: 'breeder', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
   assert.equal(decision.action, 'explore')
