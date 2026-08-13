@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'harvest_crops', 'plant_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -225,6 +225,17 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const before=bot.inventory.items().reduce((sum,i)=>sum+(i.name===`${fluid}_bucket`?i.count:0),0);await bot.pathfinder.goto(new goals.GoalNear(source.position.x,source.position.y,source.position.z,2));await bot.equip(bucket,'hand');await bot.activateBlock(source);await sleep(350)
       const after=bot.inventory.items().reduce((sum,i)=>sum+(i.name===`${fluid}_bucket`?i.count:0),0);if(after<=before)throw new Error(`raccolta di ${fluid} non verificata nell'inventario`)
       return `raccolta verificata: ${fluid} nel secchio`
+    }
+    case 'cool_lava': {
+      if(typeof bot.activateBlock!=='function')throw new Error('il client non supporta l’interazione con i fluidi')
+      const lava=bot.findBlock({matching:b=>b?.name==='lava',maxDistance:Math.min(Number(a.maxDistance)||12,24)})
+      if(!lava)throw new Error('nessuna sorgente di lava raggiungibile per creare ossidiana')
+      const water=bot.inventory.items().find(i=>i.name==='water_bucket'&&i.count>0)
+      if(!water)throw new Error('serve un secchio d’acqua per raffreddare la lava')
+      await bot.pathfinder.goto(new goals.GoalNear(lava.position.x,lava.position.y,lava.position.z,2));await bot.equip(water,'hand');await bot.activateBlock(lava);await sleep(450)
+      const cooled=bot.blockAt(lava.position)
+      if(!cooled||!/^(obsidian|cobblestone|stone)$/.test(cooled.name))throw new Error(`raffreddamento non verificato: la lava è ancora ${cooled?.name||'sconosciuta'}`)
+      return `lava raffreddata: ottenuto ${cooled.name==='obsidian'?'ossidiana':cooled.name}`
     }
     case 'harvest_crops': {
       const cropNames=/^(wheat|carrots|potatoes|beetroots|nether_wart|sweet_berry_bush)$/
@@ -509,6 +520,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&!has('bucket')&&iron>=3&&nearFluid)return{thought:'Gestione ambientale: fluido vicino, preparare un secchio senza sprecare ferro.',goal:'creare un secchio per controllare acqua o lava',action:'craft',args:{name:'bucket',count:1},expected:'secchio nell inventario'}
   if(has('bucket')&&!has('water_bucket')&&nearbyBlocks.some(x=>/^(water|kelp|seagrass)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Gestione ambientale: una sorgente d’acqua può diventare una risorsa sicura e riutilizzabile.',goal:'raccogliere acqua in un secchio',action:'collect_fluid',args:{fluid:'water'},expected:'acqua nel secchio'}
   if(has('bucket')&&!has('lava_bucket')&&nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='lava'))return{thought:'Gestione ambientale: una sorgente di lava può diventare combustibile o una barriera difensiva.',goal:'raccogliere lava in un secchio da usare in sicurezza',action:'collect_fluid',args:{fluid:'lava'},expected:'lava nel secchio'}
+  if(has('water_bucket')&&nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='lava'))return{thought:'Sperimentazione controllata: acqua e lava vicine permettono di produrre ossidiana senza esporsi al fluido.',goal:'raffreddare una sorgente di lava e creare ossidiana',action:'cool_lava',args:{maxDistance:12},expected:'lava trasformata in ossidiana o pietra verificata'}
   if(table&&!has('flint_and_steel')&&iron>=1&&flint>=1&&(nearFluid||knownPortal))return{thought:'Esplorazione pianificata: preparare l’acciarino solo per un portale o una zona di fluidi.',goal:'creare un acciarino per un portale o una difesa',action:'craft',args:{name:'flint_and_steel',count:1},expected:'acciarino nell inventario'}
   if(logs<2&&planks<4)return{thought:'Progressione automatica: servono materiali primari.',goal:'raccogliere legno',action:'collect_wood',args:{count:4},expected:'legno nell inventario'}
   if(!table&& (logs>0||planks>=4))return{thought:'Progressione automatica: banco da lavoro mancante.',goal:'creare e posizionare un banco',action:'craft',args:{name:'crafting_table',count:1},expected:'banco disponibile'}
