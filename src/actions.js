@@ -571,6 +571,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const wool=inventoryTotal(bot,x=>/_wool$/.test(x.name))
   const foodCount=items.reduce((n,x)=>n+(/bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon|cod|salmon|rabbit/.test(x.name)?x.count:0),0)
   const hasPen=checkpoints.some(x=>x.type==='pen'||/recinto allevamento/i.test(x.label||''))
+  if(profession==='breeder'&&farmAnimals.length<2)return{thought:'Professione allevatore: cercare animali compatibili prima di avviare il recinto.',goal:'esplorare per trovare una coppia di animali da allevare',action:'explore',args:{radius:24},expected:'nuovi animali individuati e registrati nella mappa'}
   if(farmAnimals.length>=2&&!hasPen&&items.some(x=>/_fence$|cobblestone|dirt|_planks$/.test(x.name)))return{thought:'Allevamento: costruire prima un recinto sicuro.',goal:'costruire un recinto per gli animali',action:'build_pen',args:{},expected:'recinto costruito'}
   if(farmAnimals.length>=2&&hasPen&&items.some(x=>/wheat|carrot|potato|beetroot|seeds/.test(x.name)))return{thought:'Allevamento: recinto verificato, animali e cibo disponibili.',goal:'avviare un allevamento protetto',action:'breed_animals',args:{species:farmAnimals[0].name},expected:'due animali nutriti'}
   if(items.length>=20||occupiedSlots>=30)return{thought:'Inventario quasi pieno: gli slot occupati superano la soglia sicura.',goal:'organizzare le risorse in un contenitore sicuro',action:'store_items',args:{maxDistance:32},expected:'materiali depositati e inventario ottimizzato'}
