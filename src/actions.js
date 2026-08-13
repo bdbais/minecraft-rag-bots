@@ -524,7 +524,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'hunt_nearest': {
       const edible = /cow|pig|chicken|sheep|rabbit|cod|salmon/i
-      const target = bot.nearestEntity(e => e.type === 'mob' && edible.test(e.name || '') && e.position.distanceTo(bot.entity.position) < 16)
+      const huntRange = Math.min(Math.max(Number(a.maxDistance) || 32, 8), 32)
+      const target = bot.nearestEntity(e => e.type === 'mob' && edible.test(e.name || '') && e.position.distanceTo(bot.entity.position) < huntRange)
       if (!target) throw new Error('nessun animale commestibile vicino')
       const weapon=(bot.inventory?.items?.()||[]).filter(i=>/(_sword|_axe)$/.test(i.name)&&i.count>0).sort((a,b)=>/sword/.test(b.name)-/sword/.test(a.name)||/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name))[0]
       if(weapon&&typeof bot.equip==='function')await bot.equip(weapon,'hand')

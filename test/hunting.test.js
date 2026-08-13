@@ -25,3 +25,9 @@ test('hunt action collects nearby drops after the attack', async () => {
 })
 
 test('hunt equips an available weapon before attacking', async()=>{const equipped=[];const target={type:'mob',name:'cow',position:{distanceTo:()=>2}};const bot={entity:{position:{distanceTo:()=>2}},inventory:{items:()=>[{name:'stone_sword',count:1}]},nearestEntity:()=>target,equip:async(i,s)=>equipped.push([i.name,s]),pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},entities:{}};await execute(bot,{action:'hunt_nearest',args:{}});assert.deepEqual(equipped,[['stone_sword','hand']])})
+
+test('hunt accepts a visible edible target up to 32 blocks away', async()=>{
+  const target={type:'mob',name:'cow',position:{x:24,y:64,z:0,distanceTo:()=>24}}
+  const bot={entity:{position:{x:0,y:64,z:0,distanceTo:()=>24}},inventory:{items:()=>[]},nearestEntity:predicate=>predicate(target)?target:null,pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},entities:{}}
+  await execute(bot,{action:'hunt_nearest',args:{}})
+})
