@@ -15,6 +15,10 @@ test('scientist profession starts a reproducible redstone experiment', () => {
   assert.equal(decision.action, 'craft')
   assert.equal(decision.args.name, 'redstone_torch')
 })
+test('scientist profession installs a completed experiment at the base', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'crafting_table', count: 1 }, { name: 'redstone_torch', count: 1 }, { name: 'lever', count: 1 }]), { profession: 'scientist', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'base', label: 'Base laboratorio' }])
+  assert.equal(decision.action, 'build_redstone_defense')
+})
 
 test('priest profession records a memorial when a safe building block is available', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'stone', count: 8 }]), { profession: 'priest', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
