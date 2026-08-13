@@ -28,6 +28,13 @@ test('planner prioritizes an Ender Dragon in the End when armed',()=>{
   assert.equal(decision.args.target,'ender_dragon')
 })
 
+test('planner prioritizes a nearby End crystal before the dragon',()=>{
+  const bot={inventory:{items:()=>[{name:'diamond_sword',count:1}]},game:{gameMode:'survival',dimension:'the_end'}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,dimension:'the_end',nearbyEntities:[{type:'mob',name:'ender_dragon',distance:10},{type:'object',name:'end_crystal',distance:6}],nearbyBlocks:[]})
+  assert.equal(decision.action,'attack_nearest')
+  assert.equal(decision.args.target,'end_crystal')
+})
+
 test('attack_nearest can acquire a distant Ender Dragon without ignoring normal mob limits',async()=>{
   const target={type:'mob',name:'ender_dragon',position:{distanceTo:()=>40},isValid:false}
   const bot={entity:{position:{distanceTo:()=>0}},inventory:{items:()=>[{name:'diamond_sword',count:1}]},nearestEntity:predicate=>predicate(target)?target:null,equip:async()=>{},pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{}}

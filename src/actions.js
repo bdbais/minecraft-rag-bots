@@ -547,7 +547,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const iron=inventoryTotal(bot,x=>x.name==='iron_ingot')
   const sticks=inventoryTotal(bot,x=>x.name==='stick'),stringCount=inventoryTotal(bot,x=>x.name==='string'),featherCount=inventoryTotal(bot,x=>x.name==='feather'),flintCount=inventoryTotal(bot,x=>x.name==='flint'),arrowCount=inventoryTotal(bot,x=>x.name==='arrow')
   const hostile=nearbyEntities.find(x=>x?.type==='mob'&&hostileNames.test(String(x.name||'')))
-  const endTarget=nearbyEntities.find(x=>x?.type==='mob'&&/^(ender_dragon|end_crystal)$/.test(String(x.name||'')))
+  const endTarget=nearbyEntities.filter(x=>/^(ender_dragon|end_crystal)$/.test(String(x?.name||''))).sort((a,b)=>Number(a?.distance||999)-Number(b?.distance||999)||(/end_crystal/.test(a?.name||'')?0:1)-(/end_crystal/.test(b?.name||'')?0:1))[0]
   const nether=String(observation.dimension||bot.game?.dimension||'').toLowerCase().includes('nether'),piglin=nearbyEntities.some(x=>x?.type==='mob'&&/piglin|zombified_piglin/.test(String(x.name||''))),goldIngots=inventoryTotal(bot,x=>x.name==='gold_ingot'),goldBoots=items.some(x=>x.name==='golden_boots')
   const visibleTargets=Array.isArray(observation.visibleTargets)?observation.visibleTargets:[]
   const mode=String(observation.gameMode||bot.game?.gameMode||'survival').toLowerCase()
