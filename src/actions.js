@@ -276,7 +276,9 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if(!sign)throw new Error('nessun punto sicuro per posizionare il cartello');await bot.pathfinder.goto(new goals.GoalNear(sign.position.x,sign.position.y,sign.position.z,3));await bot.updateSign(sign,lines);return `cartello aggiornato a ${sign.position.x},${sign.position.y},${sign.position.z}`
     }
     case 'build_pen': {
-      const material=bot.inventory.items().find(i=>/(_fence|cobblestone|stone|dirt|planks)$/.test(i.name)&&i.count>=8)
+      let material=bot.inventory.items().find(i=>/_fence$/.test(i.name)&&i.count>=8)
+      if(!material){try{await craftItem(bot,'fence',8,0);material=bot.inventory.items().find(i=>/_fence$/.test(i.name)&&i.count>=8)}catch{}}
+      material=material||bot.inventory.items().find(i=>/(_fence|cobblestone|stone|dirt|planks)$/.test(i.name)&&i.count>=8)
       if(!material)throw new Error('servono almeno 8 blocchi per costruire un recinto')
       await bot.equip(material,'hand');const p=bot.entity.position.floored();let placed=0;const positions=[]
       for(const [dx,dz] of [[-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,-1],[2,-1],[-2,0],[2,0],[-2,1],[2,1],[-2,2],[-1,2],[0,2],[1,2],[2,2]]){const below=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!below||below.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(below,new Vec3(0,1,0));positions.push(new Vec3(p.x+dx,p.y,p.z+dz));placed++}catch{}}
