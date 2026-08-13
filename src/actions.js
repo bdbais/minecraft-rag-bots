@@ -337,14 +337,18 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const blocks = bot.inventory.items().filter(i => /^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(i.name) && i.count > 0)
       if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
       const material = blocks.sort((a, b) => b.count - a.count)[0]; await bot.equip(material, 'hand')
-      const p = bot.entity.position.floored ? bot.entity.position.floored() : bot.entity.position; let placed = 0
+      const p = bot.entity.position.floored ? bot.entity.position.floored() : bot.entity.position; let placed = 0; const positions=[]
       for (const [dx, dy, dz] of [[-1,0,-1],[0,0,-1],[1,0,-1],[-1,0,0],[1,0,0],[-1,0,1],[0,0,1],[1,0,1],[-1,1,-1],[1,1,-1],[-1,1,1],[1,1,1],[0,2,0]]) {
         if (material.count <= 0) break
         const target = bot.blockAt(new Vec3(p.x + dx, p.y + dy, p.z + dz)), below = bot.blockAt(new Vec3(p.x + dx, p.y + dy - 1, p.z + dz))
         if (!target || !below || below.boundingBox !== 'block' || !/^(air|cave_air|void_air)$/.test(target.name)) continue
-        try { await bot.placeBlock(below, new Vec3(0, 1, 0)); placed++; material.count-- } catch {}
+        try { await bot.placeBlock(below, new Vec3(0, 1, 0)); positions.push(new Vec3(p.x+dx,p.y+dy,p.z+dz)); placed++; material.count-- } catch {}
       }
       if (!placed) throw new Error('nessun blocco posizionato: spazio non valido o blocchi non raggiungibili')
+      if (typeof bot.blockAt === 'function') {
+        const verified=positions.filter(pos=>{const block=bot.blockAt(pos);return block&&block.name&&!/^(air|cave_air|void_air)$/.test(block.name)}).length
+        if (!verified) throw new Error('riparo non verificato dopo il posizionamento')
+      }
       await onShareCheckpoint?.({type:'base',label:'Riparo costruito',x:p.x,y:p.y,z:p.z,note:`${placed} blocchi posizionati`,source:'shelter'})
       return `riparo costruito: ${placed} blocchi posizionati`
     }
