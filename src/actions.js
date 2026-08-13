@@ -480,6 +480,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
     if(!sheltered)return{thought:'Creative: costruire direttamente un riparo.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'riparo costruito'}
     return{thought:'Creative: esplorare una nuova area e aggiornare la mappa.',goal:'esplorare il mondo',action:'explore',args:{radius:32},expected:'nuova area esplorata'}
   }
+  if(observation.inFluid||/^(water|lava|flowing_water|flowing_lava)$/i.test(String(observation.feetBlock||''))||/^(water|lava|flowing_water|flowing_lava)$/i.test(String(observation.headBlock||'')))return{thought:'Emergenza ambientale: acqua o lava occupa lo spazio del bot.',goal:'uscire immediatamente dal fluido prima di raccogliere o esplorare',action:'escape_hazard',args:{},expected:'piedi e testa fuori dal fluido'}
   if(nearbyEntities.some(x=>x?.name==='item'))return{thought:'Raccolta automatica: oggetto lasciato vicino.',goal:'raccogliere gli oggetti caduti',action:'collect_drops',args:{maxDistance:24},expected:'oggetti nell inventario'}
   const farmAnimals=nearbyEntities.filter(x=>/^(cow|pig|sheep|chicken|rabbit|goat|horse|llama|donkey|camel)$/.test(String(x?.name||'')))
   const wool=inventoryTotal(bot,x=>/_wool$/.test(x.name))

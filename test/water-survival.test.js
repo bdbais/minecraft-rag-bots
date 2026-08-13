@@ -15,3 +15,8 @@ test('autonomous planner chooses fishing near water once a rod is available', ()
   const decision = autonomousProgressionDecision(bot, { health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['water'] })
   assert.equal(decision.action, 'fish')
 })
+
+test('autonomous planner escapes when observation reports fluid occupancy', () => {
+  const decision = autonomousProgressionDecision(base([{ name: 'stone_pickaxe', count: 1 }]), { health: 20, food: 20, inFluid: true, feetBlock: 'water', headBlock: 'water', nearbyEntities: [], nearbyBlocks: [] })
+  assert.equal(decision.action, 'escape_hazard')
+})
