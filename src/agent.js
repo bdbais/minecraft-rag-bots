@@ -79,7 +79,7 @@ export class Agent {
     catch (error) { if (generation !== this.generation || this.planningController.signal.aborted) throw new Error('INTERRUPTED'); throw error }
     finally { this.planningController = null }
     decision=basicProgressionDecision(this.bot,manual)||decision||normalizeDecision(this.bot,decision)
-    if(!manual&&decision?.action==='chat'&&/ho trovato (?:uno spawner|un portale|un end_gateway)/i.test(String(decision.args?.message||''))){const key=`danger-help:${String(decision.args.message)}`;const last=this.helpRequests.get(key)||0;if(Date.now()-last<120000)decision={thought:'Richiesta già inviata: attendo il compagno senza intasare la chat.',goal:'attendere assistenza sul pericolo segnalato',action:'wait',args:{ms:4000},expected:'tempo per l’intervento del compagno'};else this.helpRequests.set(key,Date.now())}
+    if(!manual&&decision?.action==='chat'&&/ho trovato (?:uno spawner|spawner|un portale|portale|un end_gateway|end_gateway)/i.test(String(decision.args?.message||''))){const key=`danger-help:${String(decision.args.message)}`;const last=this.helpRequests.get(key)||0;if(Date.now()-last<120000)decision={thought:'Richiesta già inviata: attendo il compagno senza intasare la chat.',goal:'attendere assistenza sul pericolo segnalato',action:'wait',args:{ms:4000},expected:'tempo per l’intervento del compagno'};else this.helpRequests.set(key,Date.now())}
     const currentSignature=this.progressSignature()
     if(!manual && currentSignature===this.lastProgressSignature) this.noProgressSteps++; else this.noProgressSteps=0
     this.lastProgressSignature=currentSignature
