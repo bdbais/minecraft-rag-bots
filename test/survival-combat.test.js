@@ -45,8 +45,10 @@ test('attack_nearest can acquire a distant Ender Dragon without ignoring normal 
 test('attack_nearest accepts an End crystal exposed as an object entity',async()=>{
   const target={type:'object',name:'end_crystal',position:{distanceTo:()=>20},isValid:false}
   const bot={entity:{position:{distanceTo:()=>0}},inventory:{items:()=>[{name:'bow',count:1}]},nearestEntity:predicate=>predicate(target)?target:null,equip:async()=>{},pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{}}
-  const result=await execute(bot,{action:'attack_nearest',args:{target:'end_crystal'}})
+  const shared=[]
+  const result=await execute(bot,{action:'attack_nearest',args:{target:'end_crystal'}},{onShareCheckpoint:async checkpoint=>shared.push(checkpoint)})
   assert.match(result,/attacked end_crystal/)
+  assert.equal(shared[0].type,'end_assault')
 })
 
 test('attack_nearest does not select passive animals by default', async () => {
