@@ -178,7 +178,9 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (!item) throw new Error(`item not in inventory: ${a.name}`)
       await bot.pathfinder.goto(new goals.GoalNear(player.position.x, player.position.y, player.position.z, 2))
       const count = Math.max(1, Math.min(Number(a.count) || 1, item.count))
-      await bot.toss(item.type, item.metadata, count);await onSocial?.(username,{karma:Math.min(1,count*0.05),good:true,memory:`ha condiviso ${count} ${item.name}`})
+      const before=item.count;await bot.toss(item.type, item.metadata, count);await sleep(250)
+      const remaining=bot.inventory.items().filter(i=>i.name===item.name).reduce((sum,i)=>sum+(Number(i.count)||0),0);if(remaining>=before)throw new Error(`condivisione non verificata: ${item.name} è ancora intatto nell’inventario`)
+      await onSocial?.(username,{karma:Math.min(1,count*0.05),good:true,memory:`ha condiviso ${count} ${item.name}`})
       return `gave ${count} ${item.name} to ${username}`
     }
     case 'share_checkpoint': {
