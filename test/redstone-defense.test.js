@@ -10,7 +10,7 @@ test('planner places redstone defense after crafting its components', () => {
 
 test('redstone defense places a torch and a trigger without breaking blocks', async () => {
   const placed=[]
-  const bot={entity:{position:{floored:()=>({x:0,y:64,z:0})}},inventory:{items:()=>[{name:'redstone_torch',count:1,type:1},{name:'lever',count:1,type:2}]},equip:async()=>{},blockAt:p=>p.y===63?{name:'stone',boundingBox:'block'}:{name:'air',boundingBox:'empty'},placeBlock:async(base)=>{placed.push(base.name)},}
+  const blocks=new Map();const bot={entity:{position:{floored:()=>({x:0,y:64,z:0})}},inventory:{items:()=>[{name:'redstone_torch',count:1,type:1},{name:'lever',count:1,type:2}]},equip:async()=>{},blockAt:p=>{const k=`${p.x},${p.y},${p.z}`;return blocks.get(k)||(p.y===63?{name:'stone',boundingBox:'block',position:p}:{name:'air',boundingBox:'empty',position:p})},placeBlock:async(base,face)=>{placed.push(base.name);const p=base.position;blocks.set(`${p.x},${p.y+1},${p.z}`,{name:placed.length===1?'redstone_torch':'lever',boundingBox:'block',position:{x:p.x,y:p.y+1,z:p.z}})},}
   const result=await execute(bot,{action:'build_redstone_defense',args:{}},{onShareCheckpoint:async()=>{}})
   assert.match(result,/difesa redstone/);assert.equal(placed.length,2)
 })

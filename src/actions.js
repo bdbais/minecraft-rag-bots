@@ -267,6 +267,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));placements.push({name:'redstone_torch',x:p.x+dx,y:p.y,z:p.z+dz});break}catch{}}
       await bot.equip(trigger,'hand');for(const [dx,dz] of [[1,1],[-1,1],[1,-1],[-1,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));placements.push({name:trigger.name,x:p.x+dx,y:p.y,z:p.z+dz});break}catch{}}
       if(placements.length<2)throw new Error('spazio non valido per costruire la difesa redstone')
+      const verified=placements.filter(x=>/redstone_torch|lever|pressure_plate/.test(bot.blockAt(new Vec3(x.x,x.y,x.z))?.name||''));if(verified.length<2&&typeof bot.blockAt==='function')throw new Error('difesa redstone non verificata dopo il posizionamento')
       await onShareCheckpoint?.({type:'danger',label:'Difesa redstone',x:p.x,y:p.y,z:p.z,note:`${trigger.name} e torcia posizionati`,source:'redstone'})
       return `difesa redstone costruita con ${placements.length} componenti`
     }
