@@ -20,3 +20,16 @@ test('verified chat success cannot be overturned by the critic', async () => {
   assert.equal(learned.achieved, true)
   assert.equal(learner.skills.chat.successes, 1)
 })
+
+test('lesson summary contains one entry per skill and keeps first learned date', async () => {
+  const ollama = { decide: async () => ({ achieved: true, lesson: 'same verified skill', nextStrategy: 'repeat safely', reusable: true, confidence: 0.9 }) }
+  const learner = new LearningEngine('unused', ollama, { add: async () => {} })
+  learner.save = async () => {}
+  const state = { inventory: {}, position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, dimension: 'overworld' }
+  for (let step = 1; step <= 2; step++) await learner.learn({ before: state, after: state, decision: { action: 'craft', goal: 'test', expected: 'crafted', args: {} }, executionSuccess: true, result: 'crafted', step })
+  const summary = learner.summary()
+  assert.equal(summary.length, 1)
+  assert.ok(summary[0].firstLearnedAt)
+  assert.ok(summary[0].lastLearnedAt)
+  assert.equal(summary[0].attempts, 2)
+})
