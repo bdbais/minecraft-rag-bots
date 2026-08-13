@@ -8,6 +8,12 @@ test('autonomous planner protects low-health bot from hostile mobs', () => {
   assert.equal(decision.action, 'escape_hazard')
 })
 
+test('autonomous planner flees a close hostile mob when unarmed and without a table', () => {
+  const bot = { inventory: { items: () => [] }, game: { gameMode: 'survival' } }
+  const decision = autonomousProgressionDecision(bot, { health: 20, food: 20, nearbyEntities: [{ type: 'mob', name: 'zombie', distance: 3 }], nearbyBlocks: [] })
+  assert.equal(decision.action, 'escape_hazard')
+})
+
 test('autonomous planner attacks hostile mobs only when armed', () => {
   const bot = { inventory: { items: () => [{ name: 'stone_sword', count: 1 }] }, game: { gameMode: 'survival' } }
   const decision = autonomousProgressionDecision(bot, { health: 20, food: 20, nearbyEntities: [{ type: 'mob', name: 'zombie' }], nearbyBlocks: [] })
