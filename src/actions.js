@@ -671,7 +671,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const origin=bot.entity?.position
   const checkpointDistance=x=>checkpointDistanceFrom(origin,x)
   const dimension=String(bot.game?.dimension||'overworld')
-  const teamTarget=checkpoints.filter(x=>x&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&(!x.dimension||String(x.dimension)===dimension)&&!/danger|lava|water/i.test(`${x.type||''} ${x.label||''}`)&&checkpointDistance(x)>4).sort((a,b)=>checkpointDistance(a)-checkpointDistance(b))[0]
+  const teamTarget=checkpoints.filter(x=>x&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&(!x.dimension||String(x.dimension)===dimension)&&!/danger|lava|water|neutralizzato|neutralized/i.test(`${x.type||''} ${x.label||''}`)&&checkpointDistance(x)>4).sort((a,b)=>checkpointDistance(a)-checkpointDistance(b))[0]
   if(teamTarget)return{thought:`Coordinamento: raggiungere il checkpoint condiviso ${teamTarget.label||teamTarget.type}.`,goal:`raggiungere il checkpoint di squadra ${teamTarget.label||teamTarget.type}`,action:'move_to',args:{x:teamTarget.x,y:teamTarget.y,z:teamTarget.z,range:3,poi:teamTarget.label||teamTarget.type},expected:'checkpoint di squadra raggiunto'}
   // Once immediate survival needs are satisfied, keep the world-learning
   // loop alive even when the language model returns no plan. Exploration is

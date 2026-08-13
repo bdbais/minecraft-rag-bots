@@ -19,3 +19,9 @@ test('checkpoint distance ignores stale serialized distance',()=>{
   assert.equal(checkpointDistanceFrom({x:0,z:0},{x:8,z:0,distance:999}),8)
   assert.equal(checkpointDistanceFrom(null,{x:8,z:0,distance:12}),12)
 })
+
+test('planner ignores neutralized End assault checkpoints',()=>{
+  const bot={game:{dimension:'the_end'},inventory:{items:()=>[{name:'diamond_sword',count:1},{name:'iron_pickaxe',count:1}]},findBlock:()=>null,registry:{blocksByName:{}}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,dimension:'the_end',nearbyEntities:[],nearbyBlocks:[],visibleTargets:[]},[{type:'end_assault',label:'Cristallo End neutralizzato',dimension:'the_end',x:30,y:70,z:30}])
+  assert.notEqual(decision.args?.poi,'Cristallo End neutralizzato')
+})
