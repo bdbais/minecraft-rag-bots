@@ -42,3 +42,10 @@ test('planner explores before mining when no stone is visible',()=>{
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[]},[])
   assert.equal(decision.action,'explore')
 })
+
+test('planner mines visible iron after the stone reserve is ready',()=>{
+  const bot={inventory:{items:()=>[{name:'crafting_table',count:1},{name:'stone_pickaxe',count:1},{name:'stone_axe',count:1},{name:'chest',count:1},{name:'furnace',count:1},{name:'oak_log',count:2},{name:'cobblestone',count:8}]},findBlock:()=>null,registry:{blocksByName:{}}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:['iron_ore']},[])
+  assert.equal(decision.action,'collect_block')
+  assert.equal(decision.args.name,'iron_ore')
+})
