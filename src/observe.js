@@ -3,7 +3,7 @@ const strategic=name=>/(_ore|_log|_wood|_stem|_hyphae|ancient_debris|chest|barre
 function scan(bot,p,radius){const old=cache.get(bot);if(old&&old.radius===radius&&Date.now()-old.at<2500&&old.position.distanceTo(p)<4)return old.data
   const nearby=[...new Set(bot.findBlocks({matching:()=>true,maxDistance:Math.min(16,radius),count:120}).map(pos=>bot.blockAt(pos)?.name).filter(Boolean))].slice(0,40)
   const targets=bot.findBlocks({matching:b=>strategic(b?.name),maxDistance:radius,count:120}).map(pos=>{const b=bot.blockAt(pos);return b&&{name:b.name,x:Math.floor(pos.x),y:Math.floor(pos.y),z:Math.floor(pos.z),distance:Math.round(pos.distanceTo(p))}}).filter(Boolean).sort((a,b)=>a.distance-b.distance).slice(0,80)
-  const entities=Object.values(bot.entities).filter(e=>e!==bot.entity&&e.position&&e.position.distanceTo(p)<radius).sort((a,b)=>a.position.distanceTo(p)-b.position.distanceTo(p)).slice(0,40).map(e=>({name:e.username||e.name,type:e.type,x:Math.floor(e.position.x),y:Math.floor(e.position.y),z:Math.floor(e.position.z),distance:Math.round(e.position.distanceTo(p))}))
+  const entities=Object.values(bot.entities).filter(e=>e!==bot.entity&&e.position&&e.position.distanceTo(p)<radius).sort((a,b)=>a.position.distanceTo(p)-b.position.distanceTo(p)).slice(0,40).map(e=>({name:e.username||e.name,username:e.type==='player'?(e.username||e.name):undefined,type:e.type,x:Math.floor(e.position.x),y:Math.floor(e.position.y),z:Math.floor(e.position.z),distance:Math.round(e.position.distanceTo(p))}))
   const data={nearby,targets,entities};cache.set(bot,{at:Date.now(),radius,position:p.clone?p.clone():p,data});return data
 }
 export function observe(bot, options={}) {
