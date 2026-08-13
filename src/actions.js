@@ -424,6 +424,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const nearbyEntities=Array.isArray(observation.nearbyEntities)?observation.nearbyEntities:[], nearbyBlocks=Array.isArray(observation.nearbyBlocks)?observation.nearbyBlocks:[]
   const hostileNames=/zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
   const iron=inventoryTotal(bot,x=>x.name==='iron_ingot')
+  const sticks=inventoryTotal(bot,x=>x.name==='stick'),stringCount=inventoryTotal(bot,x=>x.name==='string'),featherCount=inventoryTotal(bot,x=>x.name==='feather'),flintCount=inventoryTotal(bot,x=>x.name==='flint'),arrowCount=inventoryTotal(bot,x=>x.name==='arrow')
   const hostile=nearbyEntities.find(x=>x?.type==='mob'&&hostileNames.test(String(x.name||'')))
   const mode=String(observation.gameMode||bot.game?.gameMode||'survival').toLowerCase()
   if(mode==='spectator')return{thought:'Modalità spettatore: osservazione senza azioni fisiche.',goal:'osservare e riferire la zona',action:'wait',args:{ms:3000},expected:'nessuna azione fisica'}
@@ -458,13 +459,15 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(hostile&&!items.some(x=>/_sword$|_axe$/.test(x.name))&&table)return{thought:'Difesa: un mob ostile è vicino e manca un’arma.',goal:'creare un’arma per difendersi',action:'craft',args:{name:'sword',count:1},expected:'arma nell inventario'}
   if(table&&!has('shield')&&iron>=1&&planks>=1)return{thought:'Difesa preventiva: creare uno scudo prima di rischiare esplorazioni.',goal:'creare uno scudo per ridurre i danni',action:'craft',args:{name:'shield',count:1},expected:'scudo nell inventario'}
   if(hostile&&items.some(x=>/_sword$|_axe$/.test(x.name)))return{thought:'Difesa: affrontare il mob ostile prima che raggiunga il bot.',goal:`difendersi da ${hostile.name}`,action:'attack_nearest',args:{target:hostile.name},expected:'mob ostile sconfitto o distanza sicura'}
+  if(table&&!items.some(x=>x.name==='bow')&&stringCount>=3&&sticks>=3)return{thought:'Difesa a distanza: preparare un arco per affrontare mob senza esporsi.',goal:'craftare un arco per la difesa a distanza',action:'craft',args:{name:'bow',count:1},expected:'arco nell inventario'}
+  if(table&&items.some(x=>x.name==='bow')&&arrowCount<8&&flintCount>0&&featherCount>0&&sticks>0)return{thought:'Difesa a distanza: rifornire le frecce dell’arco.',goal:'craftare frecce per la difesa',action:'craft',args:{name:'arrow',count:Math.min(16,flintCount,featherCount,sticks)},expected:'frecce nell inventario'}
   const nearWater=nearbyBlocks.some(x=>/^(water|kelp|seagrass)$/.test(typeof x==='string'?x:x?.name||''))
   if(nearWater&&!food&&has('fishing_rod')&&typeof bot.fish==='function')return{thought:'Sopravvivenza: acqua vicina e nessun cibo, pescare.',goal:'procurarsi cibo pescando',action:'fish',args:{},expected:'pesce raccolto'}
   if(nearWater&&!has('fishing_rod')&&(logs+planks)>=2)return{thought:'Esplorazione: acqua vicina, preparare una canna da pesca.',goal:'creare una canna da pesca',action:'craft',args:{name:'fishing_rod',count:1},expected:'canna da pesca nell inventario'}
   const hasBoat=items.some(x=>/_boat$/.test(x.name)&&x.count>0)
   if(nearWater&&!hasBoat&&planks>=5)return{thought:'Esplorazione: acqua attraversabile, preparare una barca.',goal:'creare una barca per navigare',action:'craft',args:{name:'boat',count:1},expected:'barca nell inventario'}
   if(nearWater&&hasBoat&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
-  const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone'), sticks=inventoryTotal(bot,x=>x.name==='stick')
+  const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone')
   const torches=inventoryTotal(bot,x=>x.name==='torch'),coal=inventoryTotal(bot,x=>/^(coal|charcoal)$/.test(x.name))
   if(table&&torches<8&&coal>0&&sticks>0)return{thought:'Esplorazione sicura: preparare torce per illuminare caverne e segnare il percorso.',goal:'craftare torce per esplorare senza perdersi',action:'craft',args:{name:'torch',count:Math.min(16,coal*4,sticks)},expected:'torce nell inventario'}
   const furnaceNear=nearbyBlocks.some(x=>/^(furnace|blast_furnace|smoker)$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
