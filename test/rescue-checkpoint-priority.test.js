@@ -8,3 +8,10 @@ test('team prioritizes a rescue checkpoint over ordinary exploration', () => {
   assert.equal(decision.action,'move_to')
   assert.match(decision.goal,/soccorso/i)
 })
+
+test('team ignores stale rescue checkpoints', () => {
+  const bot={inventory:{items:()=>[{name:'stone_pickaxe',count:1},{name:'stone_axe',count:1},{name:'stone_shovel',count:1},{name:'crafting_table',count:1},{name:'chest',count:1},{name:'furnace',count:1},{name:'oak_log',count:8},{name:'cobblestone',count:8},{name:'torch',count:16}]},entity:{position:{x:0,y:64,z:0}},game:{dimension:'overworld'},findBlock:()=>null}
+  const stale={type:'resource',label:'Punto soccorso: Grifa',x:12,y:64,z:4,dimension:'overworld',lastSeen:new Date(Date.now()-31*60*1000).toISOString()}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[],recentActions:[]},[stale])
+  assert.notEqual(decision.action,'move_to')
+})
