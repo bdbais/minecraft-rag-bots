@@ -19,6 +19,15 @@ Crafting names: use crafting_table (not workbench), oak_planks/birch_planks/etc.
 
 export class Agent {
   constructor(bot, ollama, memory, config, events = {}, learner = null) { this.bot = bot; this.ollama = ollama; this.memory = memory; this.config = config; this.events = events; this.learner = learner; this.running = false; this.busy = false; this.phase = 'idle'; this.steps = 0; this.successes = 0; this.failures = 0; this.instructions = []; this.activeInstruction = ''; this.activeInstructionSteps = 0; this.generation = 0; this.planningController = null;this.actionFailures={};this.noProgressSteps=0;this.lastProgressSignature='';this.socialGreetings=new Map();this.helpRequests=new Map();this.strategyTrials={};this.recentActions=[] }
+  inferredProfession() {
+    const configured = this.config.profession || 'wanderer'
+    if (configured !== 'wanderer' && configured !== 'auto') return configured
+    const skills = this.learner?.skills || {}
+    const score = (actions) => actions.reduce((n, action) => { const s = skills[action]; if (!s) return n; const attempts = (s.successes || 0) + (s.failures || 0); return n + (attempts >= 2 ? Math.min(1, (s.successes || 0) / attempts) : 0) }, 0)
+    const candidates = [['builder',['build_shelter','build_door','build_redstone_defense']],['farmer',['harvest_crops','plant_crops','prepare_farm']],['breeder',['breed_animals','build_pen']],['hunter',['hunt_nearest','attack_nearest']],['fisher',['fish','navigate_boat']],['scientist',['craft','build_redstone_defense']],['explorer',['explore','move_to','navigate_boat']],['trader',['give_item','share_checkpoint']]]
+    const best = candidates.map(([profession, actions]) => [profession, score(actions)]).sort((a,b) => b[1] - a[1])[0]
+    return best && best[1] >= 1.2 ? best[0] : 'wanderer'
+  }
   instruct(text) { if (String(text).trim()) { this.instructions.push(String(text).trim()); this.interrupt('Nuova istruzione manuale') } }
   emit(type, payload = {}) { this.events[type]?.(payload) }
   async cancelAction() {
@@ -48,7 +57,7 @@ export class Agent {
     const generation = this.generation
     this.busy = true; this.phase = 'retrieval'; this.emit('status', { running: true })
     try {
-    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.profession=this.config.profession||'wanderer'; state.recentActions=this.recentActions.slice(-8); state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
+    const state = observe(this.bot,{visionRadius:this.config.visionRadius}); state.profession=this.inferredProfession(); state.professionConfigured=this.config.profession||'wanderer'; state.recentActions=this.recentActions.slice(-8); state.knownStorage = typeof this.config.knownChests === 'function' ? this.config.knownChests() : [];state.availableBasicRecipes=craftableBasicRecipes(this.bot)
     await this.config.onObservation?.(state)
     const worldKnowledge=typeof this.config.worldKnowledge==='function'?this.config.worldKnowledge():{}
     const query = `Goal: finish Minecraft. Current state: ${JSON.stringify(state)}`

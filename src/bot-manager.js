@@ -63,7 +63,7 @@ export class BotManager extends EventEmitter {
     const origin=this.entries.get(forId)?.bot?.entity?.position
     return [...this.entries.entries()].filter(([id,e])=>id!==forId&&e.connection==='online'&&origin&&e.bot?.entity?.position&&origin.distanceTo(e.bot.entity.position)<=32).map(([id, e]) => {
       const p = e.bot.entity.position;let observation={inventory:{},nearbyBlocks:[]};try{observation=observe(e.bot,{visionRadius:24})}catch{}
-      return { id, name:e.config.name, username:e.bot?.username||e.config.username, gender:e.config.gender||'neutral', profession:e.config.profession||'wanderer', personality:e.config.personality||'balanced', distance:Math.round(origin.distanceTo(p)), position:{x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)}, health:e.bot?.health, food:e.bot?.food, goal:e.lastGoal||'', running:!!e.agent?.running, sharedInformation:{inventory:observation.inventory,nearbyBlocks:observation.nearbyBlocks,chests:e.chestMemory?.list().slice(0,8)||[]} }
+      return { id, name:e.config.name, username:e.bot?.username||e.config.username, gender:e.config.gender||'neutral', profession:e.agent?.inferredProfession?.() || e.config.profession||'wanderer', professionConfigured:e.config.profession||'wanderer', personality:e.config.personality||'balanced', distance:Math.round(origin.distanceTo(p)), position:{x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)}, health:e.bot?.health, food:e.bot?.food, goal:e.lastGoal||'', running:!!e.agent?.running, sharedInformation:{inventory:observation.inventory,nearbyBlocks:observation.nearbyBlocks,chests:e.chestMemory?.list().slice(0,8)||[]} }
     })
   }
   publish(id, immediate = false) {
