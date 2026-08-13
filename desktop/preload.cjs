@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('botsApi', {
   listConfigs: () => ipcRenderer.invoke('config:list'), saveConfigs: x => ipcRenderer.invoke('config:save', x),
+  startAllAtLaunch: ipcRenderer.invoke('app:launch-options').then(x => !!x.startAllBots),
   setSelectedBot: id => ipcRenderer.send('ui:selected-bot', id),
   listBots: () => ipcRenderer.invoke('bot:list'), connect: x => ipcRenderer.invoke('bot:connect', x),
   start: id => ipcRenderer.invoke('bot:start', id), stop: id => ipcRenderer.invoke('bot:stop', id),

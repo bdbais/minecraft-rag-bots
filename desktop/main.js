@@ -25,6 +25,12 @@ const minecraftAssets = require('minecraft-assets')
 const assetCache = new Map()
 const execFileAsync = promisify(execFile)
 let win, manager, selectedBotId = null
+// Avvio esplicito da riga di comando: --start_all_bots=true (oppure --start_all_bots true).
+// Non modifica la configurazione: forza soltanto la coda di avvio dei bot salvati.
+const START_ALL_BOTS = process.argv.some((arg, index, args) => {
+  const value = String(arg).toLowerCase()
+  return value === '--start_all_bots=true' || (value === '--start_all_bots' && String(args[index + 1] || '').toLowerCase() === 'true')
+})
 const AUTHOR = 'bd_ba'
 const GITHUB_REPO = 'bd-ba/minecraft-rag-bots'
 const GITHUB_URL = `https://github.com/${GITHUB_REPO}`
@@ -135,6 +141,7 @@ app.on('window-all-closed', () => { manager?.closeAll(); if (process.platform !=
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) app.relaunch() })
 
 ipcMain.handle('config:list', () => loadConfigs())
+ipcMain.handle('app:launch-options', () => ({ startAllBots: START_ALL_BOTS }))
 ipcMain.handle('ollama:status', () => ollamaStatus())
 ipcMain.handle('ollama:start', () => startOllama())
 ipcMain.handle('ollama:install', () => installOllama())
