@@ -82,6 +82,11 @@ test('trader profession proposes an exchange to a nearby teammate', () => {
   assert.equal(decision.action, 'chat')
   assert.match(decision.args.message, /Alex/)
 })
+test('trader profession travels to a known market when alone', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'iron_ingot', count: 8 }]), { profession: 'trader', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [{ type: 'village', label: 'Villaggio mercantile', x: 12, y: 64, z: -4 }])
+  assert.equal(decision.action, 'move_to')
+  assert.equal(decision.args.x, 12)
+})
 
 test('priest profession offers social support to a nearby teammate', () => {
   const decision = autonomousProgressionDecision(bot([]), { profession: 'priest', health: 20, food: 20, nearbyEntities: [{ type: 'player', username: 'Marta', distance: 3 }], nearbyBlocks: [] }, [{ type: 'memorial', label: 'memoriale', x: 0, y: 64, z: 0 }])
