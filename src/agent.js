@@ -96,6 +96,10 @@ export class Agent {
       decision={thought:'Il riparo non è ancora possibile: servono blocchi da costruzione.',goal:'raccogliere materiali prima di costruire il riparo',action:'collect_wood',args:{count:4},expected:'blocchi utili nell inventario',recoveryFor:'build_shelter'}
       this.emit('log',{level:'info',message:'Recovery: build_shelter senza materiali, raccolgo prima risorse'})
     }
+    if(decision.action==='dig_escape'&&(this.actionFailures.dig_escape||0)>=2){
+      const support=inventory.find(x=>/dirt|cobblestone|stone|netherrack|deepslate|sand|gravel|planks/.test(x.name)&&x.count>0)
+      if(support){decision={thought:'Il passaggio orizzontale non porta fuori: usare una fuga verticale controllata, evitando acqua e lava.',goal:'scavare verso l’alto e uscire dal dungeon',action:'vertical_escape',args:{maxSteps:12},expected:'salire fino a uno spazio aperto',recoveryFor:'dig_escape'};this.emit('log',{level:'info',message:'Recovery: dig_escape fallita, provo fuga verticale con colonna di supporto'})}
+    }
     if(decision.action==='escape_hazard'&&(this.actionFailures.escape_hazard||0)>=2){
       const pickaxe=inventory.find(x=>/_pickaxe$/.test(x.name)); decision=pickaxe?{thought:'La fuga ambientale fallisce: cambiare piano e scavare un passaggio sicuro.',goal:'scavare una via alternativa lontano dal fluido',action:'dig_escape',args:{},expected:'passaggio libero dalla zona pericolosa',recoveryFor:'escape_hazard'}:{thought:'La fuga ambientale fallisce senza attrezzi: esplorare un percorso alternativo.',goal:'allontanarsi dalla zona pericolosa con un percorso diverso',action:'explore',args:{radius:16},expected:'nuova posizione lontana dal pericolo',recoveryFor:'escape_hazard'}
       this.emit('log',{level:'info',message:`Recovery: escape_hazard fallita, cambio strategia in ${decision.action}`})
