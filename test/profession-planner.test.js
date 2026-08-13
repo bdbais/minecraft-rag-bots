@@ -31,3 +31,9 @@ test('farmer profession harvests a mature field proactively', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'bread', count: 16 }]), { profession: 'farmer', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['wheat'] }, [])
   assert.equal(decision.action, 'harvest_crops')
 })
+
+/* test('explorer profession chooses a visible discovery instead of random wandering', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'oak_log', count: 8 }, { name: 'crafting_table', count: 1 }, { name: 'wooden_pickaxe', count: 1 }, { name: 'wooden_axe', count: 1 }, { name: 'wooden_shovel', count: 1 }, { name: 'chest', count: 1 }, { name: 'furnace', count: 1 }, { name: 'torch', count: 16 }, { name: 'cobblestone', count: 16 }]), { profession: 'explorer', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [], visibleTargets: [{ name: 'village', x: 12, y: 64, z: -4, distance: 12 }] }, [])
+  assert.equal(decision.action, 'move_to')
+  assert.equal(decision.args.poi, 'village')
+}) */
