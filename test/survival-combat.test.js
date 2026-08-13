@@ -35,6 +35,14 @@ test('planner prioritizes a nearby End crystal before the dragon',()=>{
   assert.equal(decision.args.target,'end_crystal')
 })
 
+test('defeating the Ender Dragon publishes a victory checkpoint',async()=>{
+  const target={type:'mob',name:'ender_dragon',position:{distanceTo:()=>4},isValid:false}
+  const shared=[]
+  const bot={entity:{position:{x:1,y:70,z:2,distanceTo:()=>0}},inventory:{items:()=>[{name:'diamond_sword',count:1}]},nearestEntity:predicate=>predicate(target)?target:null,equip:async()=>{},pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},game:{dimension:'the_end'}}
+  await execute(bot,{action:'attack_nearest',args:{target:'ender_dragon'}},{onShareCheckpoint:async checkpoint=>shared.push(checkpoint)})
+  assert.equal(shared[0].type,'victory')
+})
+
 test('attack_nearest can acquire a distant Ender Dragon without ignoring normal mob limits',async()=>{
   const target={type:'mob',name:'ender_dragon',position:{distanceTo:()=>40},isValid:false}
   const bot={entity:{position:{distanceTo:()=>0}},inventory:{items:()=>[{name:'diamond_sword',count:1}]},nearestEntity:predicate=>predicate(target)?target:null,equip:async()=>{},pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{}}

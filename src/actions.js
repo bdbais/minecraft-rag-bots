@@ -515,6 +515,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if((Number.isFinite(Number(target.health))&&Number(target.health)>0)||(target.isValid===true&&stillTracked))throw new Error(`bersaglio ${target.name||target.username} ancora vivo dopo l'attacco`)
       await collectNearbyDrops(bot,16)
       if(/end_crystal/i.test(String(target.name||'')))await onShareCheckpoint?.({type:'end_assault',label:'Cristallo End neutralizzato',x:Math.floor(target.position.x),y:Math.floor(target.position.y),z:Math.floor(target.position.z),dimension:bot.game?.dimension,source:'end',note:'cristallo distrutto: coordinare il prossimo bersaglio'})
+      if(/ender_dragon/i.test(String(target.name||'')))await onShareCheckpoint?.({type:'victory',label:'Drago End sconfitto',x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z),dimension:bot.game?.dimension,source:'end',note:'obiettivo finale della campagna completato'})
       return `attacked ${target.name || target.username}`
     }
     case 'hunt_nearest': {
