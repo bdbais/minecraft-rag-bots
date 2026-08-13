@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -212,6 +212,15 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const collected = await collectNearbyDrops(bot, limit)
       if (!collected) throw new Error('gli oggetti sono ancora a terra: avvicinamento o inventario non riuscito')
       return `raccolti ${collected} gruppi di oggetti caduti`
+    }
+    case 'collect_fluid': {
+      const fluid=String(a.fluid||'water').toLowerCase();if(!/^(water|lava)$/.test(fluid))throw new Error('fluido non supportato: usare water o lava')
+      if(typeof bot.activateBlock!=='function')throw new Error('il client non supporta la raccolta dei fluidi')
+      const source=bot.findBlock({matching:b=>b?.name===fluid,maxDistance:Math.min(Number(a.maxDistance)||12,24)});if(!source)throw new Error(`nessuna sorgente di ${fluid} raggiungibile`)
+      const bucket=bot.inventory.items().find(i=>i.name==='bucket'&&i.count>0);if(!bucket)throw new Error('serve un secchio vuoto')
+      const before=bot.inventory.items().reduce((sum,i)=>sum+(i.name===`${fluid}_bucket`?i.count:0),0);await bot.pathfinder.goto(new goals.GoalNear(source.position.x,source.position.y,source.position.z,2));await bot.equip(bucket,'hand');await bot.activateBlock(source);await sleep(350)
+      const after=bot.inventory.items().reduce((sum,i)=>sum+(i.name===`${fluid}_bucket`?i.count:0),0);if(after<=before)throw new Error(`raccolta di ${fluid} non verificata nell'inventario`)
+      return `raccolta verificata: ${fluid} nel secchio`
     }
     case 'inspect_storage': {
       const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:48})
@@ -433,6 +442,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&has('redstone_torch')&&redstoneTrigger&&sheltered)return{thought:'Difesa: componenti redstone pronti, costruire un punto di controllo vicino alla base.',goal:'posizionare una difesa redstone condivisibile',action:'build_redstone_defense',args:{},expected:'torcia e comando redstone posizionati'}
   const flint=inventoryTotal(bot,x=>x.name==='flint'), nearFluid=nearbyBlocks.some(x=>/^(lava|water)$/.test(typeof x==='string'?x:x?.name||'')), knownPortal=checkpoints.some(x=>x.type==='portal'||/portal|nether/i.test(x.label||''))
   if(table&&!has('bucket')&&iron>=3&&nearFluid)return{thought:'Gestione ambientale: fluido vicino, preparare un secchio senza sprecare ferro.',goal:'creare un secchio per controllare acqua o lava',action:'craft',args:{name:'bucket',count:1},expected:'secchio nell inventario'}
+  if(has('bucket')&&!has('water_bucket')&&nearbyBlocks.some(x=>/^(water|kelp|seagrass)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Gestione ambientale: una sorgente d’acqua può diventare una risorsa sicura e riutilizzabile.',goal:'raccogliere acqua in un secchio',action:'collect_fluid',args:{fluid:'water'},expected:'acqua nel secchio'}
   if(table&&!has('flint_and_steel')&&iron>=1&&flint>=1&&(nearFluid||knownPortal))return{thought:'Esplorazione pianificata: preparare l’acciarino solo per un portale o una zona di fluidi.',goal:'creare un acciarino per un portale o una difesa',action:'craft',args:{name:'flint_and_steel',count:1},expected:'acciarino nell inventario'}
   if(logs<2&&planks<4)return{thought:'Progressione automatica: servono materiali primari.',goal:'raccogliere legno',action:'collect_wood',args:{count:4},expected:'legno nell inventario'}
   if(!table&& (logs>0||planks>=4))return{thought:'Progressione automatica: banco da lavoro mancante.',goal:'creare e posizionare un banco',action:'craft',args:{name:'crafting_table',count:1},expected:'banco disponibile'}
