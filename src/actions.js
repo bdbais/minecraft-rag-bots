@@ -364,7 +364,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'craft': {
       const crafted=await craftItem(bot, String(a.name || ''), a.count)
-      if(a.replaceWorn&&typeof bot.equip==='function'){const fresh=bot.inventory.items().find(i=>i.name===resolveCraftName(bot,a.name)&&i.count>0);if(fresh)await bot.equip(fresh,'hand')}
+      if(typeof bot.equip==='function'&&(/_(pickaxe|axe|shovel|hoe|sword)$|bow$|crossbow$|shield$|fishing_rod$/.test(resolveCraftName(bot,a.name)))){const fresh=bot.inventory.items().find(i=>i.name===resolveCraftName(bot,a.name)&&i.count>0);if(fresh)await bot.equip(fresh,/shield$/.test(fresh.name)?'off-hand':'hand')}
       return crafted
     }
     case 'smelt': {

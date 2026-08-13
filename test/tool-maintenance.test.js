@@ -20,3 +20,9 @@ test('craft replacement equips the fresh tool', async()=>{
   await execute(bot,{action:'craft',args:{name:'iron_pickaxe',replaceWorn:true}})
   assert.deepEqual(equipped,[['iron_pickaxe','hand']])
 })
+
+test('normal tool crafting equips the new tool immediately', async()=>{
+  const equipped=[];let count=0;const bot={registry:{itemsByName:{stone_pickaxe:{id:1}},items:{1:{name:'stone_pickaxe'}},blocksByName:{crafting_table:{id:2}}},inventory:{items:()=>[{name:'stone_pickaxe',type:1,count:1}],count:()=>count},findBlock:()=>({name:'crafting_table'}),recipesFor:()=>[{result:{count:1},delta:[]}],craft:async()=>{count=1},equip:async(item,slot)=>equipped.push([item.name,slot])}
+  await execute(bot,{action:'craft',args:{name:'stone_pickaxe'}})
+  assert.deepEqual(equipped,[['stone_pickaxe','hand']])
+})
