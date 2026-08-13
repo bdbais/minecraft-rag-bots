@@ -20,3 +20,9 @@ test('priest profession records a memorial when a safe building block is availab
   const decision = autonomousProgressionDecision(bot([{ name: 'stone', count: 8 }]), { profession: 'priest', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
   assert.equal(decision.action, 'build_memorial')
 })
+
+test('hunter profession maintains a food reserve before starvation', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'bread', count: 4 }]), { profession: 'hunter', health: 20, food: 18, nearbyEntities: [{ type: 'mob', name: 'cow', distance: 6 }], nearbyBlocks: [] }, [])
+  assert.equal(decision.action, 'hunt_nearest')
+  assert.equal(decision.args.target, 'cow')
+})
