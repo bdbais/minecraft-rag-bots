@@ -25,7 +25,8 @@ export class LearningEngine {
   async load() { try { const data = JSON.parse(await fs.readFile(this.file, 'utf8')); this.skills = data.skills || {}; this.totalLessons = data.totalLessons || 0 } catch (e) { if (e.code !== 'ENOENT') throw e } }
   async save() { await fs.mkdir(path.dirname(this.file), { recursive: true }); await fs.writeFile(this.file, JSON.stringify({ totalLessons: this.totalLessons, skills: this.skills }, null, 2)) }
   summary() {
-    return Object.entries(this.skills).map(([action, x]) => ({ action, attempts: x.successes+x.failures, successRate: x.successes/(x.successes+x.failures || 1), bestLesson: x.bestLesson })).sort((a,b)=>b.attempts-a.attempts)
+    // One entry per action/skill: attempts are evidence, not extra lessons.
+    return Object.entries(this.skills).map(([action, x]) => ({ action, attempts: x.successes+x.failures, successRate: x.successes/(x.successes+x.failures || 1), bestLesson: x.bestLesson, firstLearnedAt: x.firstLearnedAt || null, lastLearnedAt: x.lastLearnedAt || null })).sort((a,b)=>b.attempts-a.attempts)
   }
   async learn({ before, after, decision, manual, executionSuccess, result, step }) {
     const delta = stateDelta(before, after)
@@ -51,7 +52,13 @@ export class LearningEngine {
       reflection.lesson = `${key} completed successfully: ${result}`
     }
     if (reflection.achieved) stat.successes++; else stat.failures++
-    stat.lastResult = String(result); if (reflection.reusable && reflection.achieved) stat.bestLesson = reflection.lesson
+    stat.lastResult = String(result)
+    if (reflection.reusable && reflection.achieved) {
+      stat.bestLesson = reflection.lesson
+      const now = new Date().toISOString()
+      stat.firstLearnedAt ||= now
+      stat.lastLearnedAt = now
+    }
     const text = `LEARNED EPISODE. Human instruction: ${manual || 'none'}. Goal: ${decision.goal}. Action: ${key} ${JSON.stringify(decision.args)}. Observed change: ${JSON.stringify(delta)}. Outcome: ${reflection.achieved ? 'SUCCESS' : 'FAILURE'}. Lesson: ${reflection.lesson}. Next strategy: ${reflection.nextStrategy}. Confidence: ${reflection.confidence}.`
     this.totalLessons++; if(reflection.reusable && Number(reflection.confidence)>=0.7) { await this.memory.add(text, { type: 'learned_episode', success: reflection.achieved, action: key, confidence: reflection.confidence, manualInstruction: manual || null }); await this.shared?.record({text,action:key,confidence:reflection.confidence,success:reflection.achieved,source:step}) } await this.save()
     return { ...reflection, delta }
