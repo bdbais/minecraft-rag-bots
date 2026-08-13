@@ -655,7 +655,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(nearWater&&!has('fishing_rod')&&stringCount>=2&&sticks>=3)return{thought:'Esplorazione: acqua vicina e materiali completi, preparare una canna da pesca.',goal:'creare una canna da pesca',action:'craft',args:{name:'fishing_rod',count:1},expected:'canna da pesca nell inventario'}
   const hasBoat=items.some(x=>/_boat$/.test(x.name)&&x.count>0)
   if(nearWater&&!hasBoat&&planks>=5)return{thought:'Esplorazione: acqua attraversabile, preparare una barca.',goal:'creare una barca per navigare',action:'craft',args:{name:'boat',count:1},expected:'barca nell inventario'}
-  if(nearWater&&hasBoat&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
+  const recentlyNavigated=(observation.recentActions||[]).some(x=>x.action==='navigate_boat'&&x.success)
+  if(nearWater&&hasBoat&&!recentlyNavigated&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
   const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone')
   const hasPickaxe=items.some(x=>/_pickaxe$/.test(x.name)&&x.count>0)
   const torches=inventoryTotal(bot,x=>x.name==='torch'),coal=inventoryTotal(bot,x=>/^(coal|charcoal)$/.test(x.name))
