@@ -387,6 +387,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'craft': {
       const crafted=await craftItem(bot, String(a.name || ''), a.count)
       if(typeof bot.equip==='function'&&(/_(pickaxe|axe|shovel|hoe|sword)$|bow$|crossbow$|shield$|fishing_rod$/.test(resolveCraftName(bot,a.name)))){const fresh=bot.inventory.items().find(i=>i.name===resolveCraftName(bot,a.name)&&i.count>0);if(fresh)await bot.equip(fresh,/shield$/.test(fresh.name)?'off-hand':'hand')}
+      const craftedName=resolveCraftName(bot,a.name),station=/^(crafting_table|furnace|blast_furnace|smoker|composter|brewing_stand|anvil|enchanting_table)$/.test(craftedName||'')
+      if(station&&typeof bot.findBlock==='function'){const block=bot.findBlock({matching:b=>b?.name===craftedName,maxDistance:8});if(block)await onShareCheckpoint?.({type:'workstation',label:`Postazione ${craftedName}`,x:block.position.x,y:block.position.y,z:block.position.z,dimension:bot.game?.dimension,note:'postazione individuata e disponibile alla squadra',source:'crafting'})}
       return crafted
     }
     case 'smelt': {
