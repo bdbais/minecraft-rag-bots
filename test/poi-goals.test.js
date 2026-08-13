@@ -28,3 +28,10 @@ test('planner avoids an unprotected spawner',()=>{
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[],visibleTargets:[{name:'spawner',x:8,y:20,z:8,distance:12}]},[{type:'base',label:'Riparo'}])
   assert.notEqual(decision.action,'move_to')
 })
+
+test('planner asks a nearby teammate for help before approaching danger',()=>{
+  const bot={username:'Grifa',inventory:{items:()=>[{name:'crafting_table',count:1},{name:'oak_log',count:4},{name:'stone_pickaxe',count:1},{name:'chest',count:1}]},findBlock:()=>null,registry:{blocksByName:{}}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[{type:'player',username:'Mattew'}],nearbyBlocks:[],visibleTargets:[{name:'spawner',x:8,y:20,z:8,distance:12}]},[{type:'base',label:'Riparo'}])
+  assert.equal(decision.action,'chat')
+  assert.match(decision.args.message,/Mattew/)
+})
