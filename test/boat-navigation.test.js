@@ -16,6 +16,14 @@ test('navigate_boat equips, places, mounts and moves forward', async () => {
   assert.deepEqual(controls, [['forward', true], ['forward', false]])
 })
 
+test('navigate_boat shares the verified water route', async () => {
+  const shared=[]
+  const pos={x:12,y:64,z:-4,clone(){return {...this}},distanceTo(){return 8}}
+  const bot={inventory:{items:()=>[{name:'oak_boat',count:1}]},entity:{position:pos},findBlock:()=>({name:'water'}),equip:async()=>{},placeEntity:async()=>({id:1}),mount:async()=>{},setControlState:()=>{}}
+  await execute(bot,{action:'navigate_boat',args:{durationMs:1000}},{onShareCheckpoint:x=>shared.push(x)})
+  assert.equal(shared[0].type,'water_route')
+})
+
 test('enter_portal verifies a real dimension change', async()=>{
   const controls=[]
   const bot={game:{dimension:'overworld'},entity:{position:{x:4,y:70,z:8}},findBlock:()=>({name:'nether_portal',position:{x:4,y:70,z:8}}),pathfinder:{goto:async()=>{}},setControlState:(key,value)=>{controls.push([key,value]);if(key==='forward'&&value)bot.game.dimension='the_nether'}}

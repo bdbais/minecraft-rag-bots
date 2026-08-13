@@ -424,7 +424,9 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.equip(boat, 'hand'); const before=bot.entity.position.clone?bot.entity.position.clone():new Vec3(bot.entity.position.x,bot.entity.position.y,bot.entity.position.z); const entity = await bot.placeEntity(water, new Vec3(0, 1, 0)); await bot.mount(entity)
       try { bot.setControlState?.('forward', true); await sleep(Math.min(10000, Math.max(1000, Number(a.durationMs) || 4000))) }
       finally { bot.setControlState?.('forward', false); try { await bot.dismount?.() } catch {} }
-      const after=bot.entity.position, distance=before.distanceTo(after); if(distance<2)throw new Error('barca posata ma nessun avanzamento verificato'); return `barca posata e navigazione completata: ${Math.round(distance)} blocchi`
+      const after=bot.entity.position, distance=before.distanceTo(after); if(distance<2)throw new Error('barca posata ma nessun avanzamento verificato')
+      await onShareCheckpoint?.({type:'water_route',label:'Rotta d’acqua esplorata',x:Math.floor(after.x),y:Math.floor(after.y),z:Math.floor(after.z),dimension:bot.game?.dimension,note:`navigazione verificata per ${Math.round(distance)} blocchi`,source:'navigation'})
+      return `barca posata e navigazione completata: ${Math.round(distance)} blocchi`
     }
     case 'enter_portal': {
       const portal=bot.findBlock?.({matching:b=>b?.name==='nether_portal',maxDistance:24})
