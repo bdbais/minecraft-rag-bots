@@ -475,6 +475,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(nearWater&&!hasBoat&&planks>=5)return{thought:'Esplorazione: acqua attraversabile, preparare una barca.',goal:'creare una barca per navigare',action:'craft',args:{name:'boat',count:1},expected:'barca nell inventario'}
   if(nearWater&&hasBoat&&typeof bot.placeEntity==='function')return{thought:'Esplorazione: barca disponibile e acqua navigabile.',goal:'attraversare l’acqua e scoprire una nuova area',action:'navigate_boat',args:{durationMs:4000},expected:'nuova area esplorata via acqua'}
   const cobble=inventoryTotal(bot,x=>/^(cobblestone|blackstone|cobbled_deepslate)$/.test(x.name)), redstone=inventoryTotal(bot,x=>x.name==='redstone')
+  const hasPickaxe=items.some(x=>/_pickaxe$/.test(x.name)&&x.count>0)
   const torches=inventoryTotal(bot,x=>x.name==='torch'),coal=inventoryTotal(bot,x=>/^(coal|charcoal)$/.test(x.name))
   if(table&&torches<8&&coal>0&&sticks>0)return{thought:'Esplorazione sicura: preparare torce per illuminare caverne e segnare il percorso.',goal:'craftare torce per esplorare senza perdersi',action:'craft',args:{name:'torch',count:Math.min(16,coal*4,sticks)},expected:'torce nell inventario'}
   const furnaceNear=nearbyBlocks.some(x=>/^(furnace|blast_furnace|smoker)$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
@@ -497,6 +498,13 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&!has('chest'))return{thought:'Progressione automatica: contenitore mancante.',goal:'creare una chest',action:'craft',args:{name:'chest',count:1},expected:'chest nell inventario'}
   if(!sheltered&&items.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)))return{thought:'Progressione automatica: nessun riparo registrato.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'riparo costruito'}
   if(sheltered&&!items.some(x=>/_door$/.test(x.name))&&planks>=6)return{thought:'Sicurezza della base: chiudere l’ingresso con una porta per impedire l’accesso ai mob.',goal:'costruire una porta verificata per il riparo',action:'build_door',args:{},expected:'porta posizionata'}
+  // Mining is a deterministic progression step, not an implicit side effect
+  // of exploration.  Keep it after immediate survival/base safety so a bot
+  // never abandons an exposed shelter just to gather stone.
+  if(table&&hasPickaxe&&cobble<8){
+    const visibleStone=nearbyBlocks.some(x=>/^(stone|deepslate|cobblestone|blackstone|tuff)$/.test(typeof x==='string'?x:x?.name||''))
+    return{thought:'Progressione mineraria: il piccone è pronto ma mancano pietra e cobblestone per forno e strumenti.',goal:'minare pietra con il piccone per sbloccare la tecnologia di base',action:'collect_block',args:{name:visibleStone?'stone':'cobblestone',count:Math.min(8-cobble,8),maxDistance:32},expected:'almeno otto blocchi di cobblestone nell’inventario'}
+  }
   // Once immediate survival needs are satisfied, keep the world-learning
   // loop alive even when the language model returns no plan. Exploration is
   // bounded and becomes a reusable episode through the normal learner.
