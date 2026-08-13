@@ -213,9 +213,10 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const explicitDestroy = /distrugg|romp|demol|rimuov|break|destroy/i.test(`${decision.goal || ''} ${a.reason || ''}`)
       const protectedObject=/^(crafting_table|furnace|blast_furnace|smoker|chest|trapped_chest|barrel|anvil|smithing_table|grindstone|stonecutter|cartography_table|loom|enchanting_table|brewing_stand|door|.*_door|trapdoor|.*_trapdoor|fence_gate|.*_fence_gate|bed|.*_bed|sign|.*_sign|hanging_sign|.*_hanging_sign|ladder|scaffolding|torch|.*_torch|lantern|.*_lantern|lever|button|.*_button|pressure_plate|.*_pressure_plate|rail|.*_rail)$/.test(name)
       if (protectedObject && !explicitDestroy) throw new Error(`${name} è un oggetto/postazione protetta: serve un comando esplicito per distruggerla`)
-      const count=Math.max(1,Math.min(Number(a.count)||1,16)),distance=Math.min(Number(a.maxDistance)||48,64),before=inventoryTotal(bot);let broken=0
-      for(let i=0;i<count;i++){const block=bot.findBlock({matching:b=>b?.name===name,maxDistance:distance});if(!block)break;await equipToolForBlock(bot,name);await collectOrDigBlock(bot,block);broken++;await collectNearbyDrops(bot,16)}
+      const count=Math.max(1,Math.min(Number(a.count)||1,16)),distance=Math.min(Number(a.maxDistance)||48,64),before=inventoryTotal(bot);let broken=0,foundPosition=null
+      for(let i=0;i<count;i++){const block=bot.findBlock({matching:b=>b?.name===name,maxDistance:distance});if(!block)break;foundPosition=foundPosition||block.position;await equipToolForBlock(bot,name);await collectOrDigBlock(bot,block);broken++;await collectNearbyDrops(bot,16)}
       const gained=inventoryTotal(bot)-before;if(!broken)throw new Error(`nessun blocco ${name} visibile e raggiungibile`);if(bot.inventory?.items&&gained<=0)throw new Error(`${broken} blocchi ${name} rotti, ma nessun materiale è entrato nell’inventario`)
+      if(foundPosition&&onShareCheckpoint&&/diamond_ore|gold_ore|iron_ore|ancient_debris|spawner|chest|portal/.test(name))await onShareCheckpoint({type:'resource',label:name,x:foundPosition.x,y:foundPosition.y,z:foundPosition.z,dimension:bot.game?.dimension,note:'risorsa individuata e raccolta',source:'mining'})
       return `raccolti ${gained||broken} oggetti da ${name}`
     }
     case 'collect_wood': {

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { autonomousProgressionDecision } from '../src/actions.js'
+import { autonomousProgressionDecision, execute } from '../src/actions.js'
 
 test('planner uses a pickaxe to mine stone before wandering', () => {
   const bot={
@@ -55,4 +55,20 @@ test('planner investigates a visible diamond vein after basic progression',()=>{
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:['diamond_ore']},[])
   assert.equal(decision.action,'collect_block')
   assert.equal(decision.args.name,'diamond_ore')
+})
+
+test('collecting strategic ore shares its exact resource checkpoint', async()=>{
+  const items=[{name:'iron_pickaxe',count:1}]
+  const shared=[]
+  const bot={
+    inventory:{items:()=>items},
+    findBlock:()=>({name:'diamond_ore',position:{x:12,y:-18,z:34}}),
+    equip:async()=>{},
+    collectBlock:{collect:async()=>items.push({name:'diamond',count:1})},
+    entities:{},
+    entity:{position:{x:12,y:-18,z:34}},
+    game:{dimension:'minecraft:overworld'}
+  }
+  await execute(bot,{action:'collect_block',args:{name:'diamond_ore',count:1}},{onShareCheckpoint:async checkpoint=>shared.push(checkpoint)})
+  assert.deepEqual(shared,[{type:'resource',label:'diamond_ore',x:12,y:-18,z:34,dimension:'minecraft:overworld',note:'risorsa individuata e raccolta',source:'mining'}])
 })
