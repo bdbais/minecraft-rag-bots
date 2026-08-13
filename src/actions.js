@@ -326,7 +326,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'sleep': {
       if(typeof bot.sleep!=='function')throw new Error('sonno non disponibile nel client Minecraft')
-      const bed=bot.findBlock({matching:b=>/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)?_?bed$/.test(b?.name||''),maxDistance:32})
+      let bed=bot.findBlock({matching:b=>/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)?_?bed$/.test(b?.name||''),maxDistance:32})
+      if(!bed){const bedItem=bot.inventory.items().find(i=>/_bed$/.test(i.name)&&i.count>0);if(bedItem){const p=bot.entity.position.floored();await bot.equip(bedItem,'hand');for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const base=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),target=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(!base||base.boundingBox!=='block'||!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(base,new Vec3(0,1,0));bed=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz));if(bed)break}catch{}}}}
       if(!bed)throw new Error('nessun letto raggiungibile')
       await bot.pathfinder.goto(new goals.GoalNear(bed.position.x,bed.position.y,bed.position.z,2));await bot.sleep(bed);return 'notte superata dormendo al sicuro'
     }
@@ -433,6 +434,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   }
   if(nearbyEntities.some(x=>x?.name==='item'))return{thought:'Raccolta automatica: oggetto lasciato vicino.',goal:'raccogliere gli oggetti caduti',action:'collect_drops',args:{maxDistance:24},expected:'oggetti nell inventario'}
   const farmAnimals=nearbyEntities.filter(x=>/^(cow|pig|sheep|chicken|rabbit|goat|horse|llama|donkey|camel)$/.test(String(x?.name||'')))
+  const wool=inventoryTotal(bot,x=>/_wool$/.test(x.name))
   const foodCount=items.reduce((n,x)=>n+(/bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon|cod|salmon|rabbit/.test(x.name)?x.count:0),0)
   if(farmAnimals.length>=2&&items.some(x=>/wheat|carrot|potato|beetroot|seeds/.test(x.name)))return{thought:'Allevamento: animali e cibo disponibili.',goal:'avviare un allevamento protetto',action:'breed_animals',args:{species:farmAnimals[0].name},expected:'due animali nutriti'}
   if(farmAnimals.length>=2&&items.some(x=>/_fence$|cobblestone|dirt|_planks$/.test(x.name)))return{thought:'Allevamento: costruire prima un recinto sicuro.',goal:'costruire un recinto per gli animali',action:'build_pen',args:{},expected:'recinto costruito'}
@@ -442,6 +444,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const time=Number(observation.time)
   const night=time>=12500&&time<=23500,bedNear=nearbyBlocks.some(x=>/bed$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/bed$/.test(b?.name||''),maxDistance:32})
   if(night&&bedNear)return{thought:'Sopravvivenza: è notte e un letto sicuro è vicino.',goal:'dormire per superare la notte',action:'sleep',args:{},expected:'notte superata senza esporsi ai mostri'}
+  if(night&&!bedNear&&!items.some(x=>/_bed$/.test(x.name))&&wool>=3&&planks>=3&&table)return{thought:'Sopravvivenza notturna: craftare un letto e posizionarlo prima dell’arrivo dei mob.',goal:'creare un letto per passare la notte al sicuro',action:'craft',args:{name:'bed',count:1},expected:'letto nell inventario'}
   if(hostile&&Number(observation.health)>0&&Number(observation.health)<8)return{thought:'Pericolo: mob ostile vicino e salute bassa.',goal:'allontanarsi dal mob ostile',action:'escape_hazard',args:{},expected:'distanza di sicurezza'}
   if(Number(observation.food)<8&&food)return{thought:'Priorità survival: fame bassa.',goal:'mangiare per sopravvivere',action:'eat',args:{name:food.name},expected:'fame sopra la soglia'}
   if(Number(observation.health)>0&&Number(observation.health)<8&&food)return{thought:'Priorità survival: salute critica.',goal:'mangiare e cercare sicurezza',action:'eat',args:{name:food.name},expected:'salute stabilizzata'}
