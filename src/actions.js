@@ -534,7 +534,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   // never abandons an exposed shelter just to gather stone.
   if(table&&hasPickaxe&&cobble<8){
     const visibleStone=nearbyBlocks.some(x=>/^(stone|deepslate|cobblestone|blackstone|tuff)$/.test(typeof x==='string'?x:x?.name||''))
-    return{thought:'Progressione mineraria: il piccone è pronto ma mancano pietra e cobblestone per forno e strumenti.',goal:'minare pietra con il piccone per sbloccare la tecnologia di base',action:'collect_block',args:{name:visibleStone?'stone':'cobblestone',count:Math.min(8-cobble,8),maxDistance:32},expected:'almeno otto blocchi di cobblestone nell’inventario'}
+    if(!visibleStone)return{thought:'Progressione mineraria: il piccone è pronto ma la pietra non è ancora caricata nella zona visibile.',goal:'esplorare una zona sicura per trovare pietra prima di minare',action:'explore',args:{radius:24},expected:'nuova area caricata con pietra raggiungibile'}
+    return{thought:'Progressione mineraria: il piccone è pronto ma mancano pietra e cobblestone per forno e strumenti.',goal:'minare pietra con il piccone per sbloccare la tecnologia di base',action:'collect_block',args:{name:'stone',count:Math.min(8-cobble,8),maxDistance:32},expected:'almeno otto blocchi di cobblestone nell’inventario'}
   }
   // Once immediate survival needs are satisfied, keep the world-learning
   // loop alive even when the language model returns no plan. Exploration is

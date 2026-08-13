@@ -33,3 +33,12 @@ test('planner does not remine stone once the reserve is ready', () => {
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[]},[])
   assert.notEqual(decision.action,'collect_block')
 })
+
+test('planner explores before mining when no stone is visible',()=>{
+  const bot={inventory:{items:()=>[
+    {name:'crafting_table',count:1},{name:'stone_pickaxe',count:1},
+    {name:'oak_log',count:4},{name:'chest',count:1},{name:'stone_axe',count:1}
+  ]},findBlock:()=>null,registry:{blocksByName:{}}}
+  const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[]},[])
+  assert.equal(decision.action,'explore')
+})
