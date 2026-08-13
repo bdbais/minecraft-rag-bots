@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'harvest_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'harvest_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -377,6 +377,16 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await onShareCheckpoint?.({type:'base',label:'Riparo costruito',x:p.x,y:p.y,z:p.z,note:`${placed} blocchi posizionati`,source:'shelter'})
       return `riparo costruito: ${placed} blocchi posizionati`
     }
+    case 'build_door': {
+      let door=bot.inventory.items().find(i=>/_door$/.test(i.name)&&i.count>0)
+      if(!door){try{await craftItem(bot,'door',1,0);door=bot.inventory.items().find(i=>/_door$/.test(i.name)&&i.count>0)}catch{}}
+      if(!door)throw new Error('nessuna porta disponibile e impossibile craftarla')
+      const p=bot.entity.position.floored();await bot.equip(door,'hand');let bottom=null
+      for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const floor=bot.blockAt(new Vec3(p.x+dx,p.y-1,p.z+dz)),lower=bot.blockAt(new Vec3(p.x+dx,p.y,p.z+dz)),upper=bot.blockAt(new Vec3(p.x+dx,p.y+1,p.z+dz));if(!floor||floor.boundingBox!=='block'||!lower||!upper||!/^(air|cave_air|void_air)$/.test(lower.name)||!/^(air|cave_air|void_air)$/.test(upper.name))continue;try{await bot.placeBlock(floor,new Vec3(0,1,0));bottom=new Vec3(p.x+dx,p.y,p.z+dz);break}catch{}}
+      if(!bottom)throw new Error('nessuno spazio sicuro per posizionare la porta')
+      await sleep(250);const lower=bot.blockAt(bottom),upper=bot.blockAt(new Vec3(bottom.x,bottom.y+1,bottom.z));if(!/_door$/.test(lower?.name||'')&&!/_door$/.test(upper?.name||''))throw new Error('porta non verificata dopo il posizionamento')
+      return `porta costruita a ${bottom.x},${bottom.y},${bottom.z}`
+    }
     case 'attack_nearest': {
       const hostile = /zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
       const requested = String(a.target || a.name || '').toLowerCase()
@@ -468,6 +478,7 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&!items.some(x=>/_axe$/.test(x.name)))return{thought:'Progressione automatica: ascia mancante.',goal:'creare un ascia',action:'craft',args:{name:'axe',count:1},expected:'ascia nell inventario'}
   if(table&&!has('chest'))return{thought:'Progressione automatica: contenitore mancante.',goal:'creare una chest',action:'craft',args:{name:'chest',count:1},expected:'chest nell inventario'}
   if(!sheltered&&items.some(x=>/^(dirt|cobblestone|stone|deepslate|.*_planks)$/.test(x.name)))return{thought:'Progressione automatica: nessun riparo registrato.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'riparo costruito'}
+  if(sheltered&&!items.some(x=>/_door$/.test(x.name))&&planks>=6)return{thought:'Sicurezza della base: chiudere l’ingresso con una porta per impedire l’accesso ai mob.',goal:'costruire una porta verificata per il riparo',action:'build_door',args:{},expected:'porta posizionata'}
   // Once immediate survival needs are satisfied, keep the world-learning
   // loop alive even when the language model returns no plan. Exploration is
   // bounded and becomes a reusable episode through the normal learner.
