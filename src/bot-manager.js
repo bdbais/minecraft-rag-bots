@@ -192,7 +192,17 @@ export class BotManager extends EventEmitter {
         const instruction = `Conversazione sociale con ${username}. Messaggio ricevuto: “${text}”. ${response ? 'È già stata inviata una risposta pubblica: non mandare un secondo messaggio nello stesso ciclo; usa il contenuto per aggiornare memoria e, se sicuro, agire sull’obiettivo.' : 'Rispondi in chat con una frase coerente con la tua personalità; se il messaggio contiene un obiettivo, chiariscilo e proponi una collaborazione.'} Ricorda questa persona e il contesto per i prossimi incontri. Non limitarti a salutare.`
         if (entry.agent) { entry.agent.instruct(instruction); if (!entry.agent.running) entry.agent.start() } else entry.pendingInstructions.push(instruction)
         this.log(id, 'prompt', `${username} dalla chat: ${text}`)
-      } else this.log(id, 'info', `Compagno ${username}: ${text}`)
+      } else {
+        // Un messaggio del compagno non indirizzato direttamente è comunque
+        // informazione di squadra: obiettivi, risorse e pericoli devono
+        // aggiornare la memoria decisionale senza generare auto-dialoghi.
+        this.log(id, 'info', `Compagno ${username}: ${text}`)
+        if (/(aiut|obiettiv|dobbiamo|trova|raccogli|porta|pericol|lava|acqua|chest|craft|esplor|base|drago)/i.test(text)) {
+          const instruction = `Aggiornamento dal compagno ${username}: “${text}”. Non rispondere automaticamente se non sei interpellata; usa però questa informazione per coordinare il prossimo obiettivo, condividere risorse o evitare pericoli. Non duplicare il lavoro del compagno.`
+          if (entry.agent) { entry.agent.instruct(instruction); if (!entry.agent.running) entry.agent.start() } else entry.pendingInstructions.push(instruction)
+          this.log(id, 'prompt', `Informazione di squadra da ${username}: ${text}`)
+        }
+      }
     })
     bot.on('death', () => { const memorial={botId:id,name:config.name,at:new Date().toISOString(),position:bot.entity?.position?{x:Math.floor(bot.entity.position.x),y:Math.floor(bot.entity.position.y),z:Math.floor(bot.entity.position.z)}:null,dimension:bot.game?.dimension||'unknown',hardcore:!!bot.game?.hardcore};fs.appendFile(path.join(this.dataDir,'memorials.jsonl'),`${JSON.stringify(memorial)}\n`).catch(()=>{});this.log(id,'error',`Il bot è morto${memorial.position?` a ${memorial.position.x},${memorial.position.y},${memorial.position.z}`:''}`);if (entry.agent) { entry.agent.failures++; entry.agent.instruct('Commemora il difensore caduto: se hai materiali e sei in sicurezza costruisci un piccolo memoriale nel luogo della morte e scrivi un cartello con il suo nome. Non rischiare la vita per farlo.') } entry.biography?.add('death', 'La caduta', `${config.name} è morto, ma la sua storia e le sue lezioni continueranno dopo la rinascita.`,{memorial}).catch(()=>{}) })
     bot.on('death', () => { const p=bot.entity?.position; if(p)entry.teamStore?.publish({type:'memorial',label:`Caduta di ${config.name}`,x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z),dimension:bot.game?.dimension||'unknown',note:'luogo della morte da commemorare quando sicuro',source:'hardcore',reporter:config.name}).catch(()=>{}) })
