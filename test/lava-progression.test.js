@@ -28,3 +28,5 @@ test('build_portal places a verified frame and shares its checkpoint',async()=>{
   await execute(bot,{action:'build_portal',args:{}},{onShareCheckpoint:async cp=>checkpoints.push(cp)})
   assert.equal(placed.size,10);assert.equal(activated,'obsidian');assert.equal(checkpoints[0].type,'portal')
 })
+
+test('planner prepares golden boots near piglins in the Nether',()=>{const b=bot=>({inventory:{items:()=>bot},game:{gameMode:'survival',dimension:'the_nether'},findBlock:()=>null,registry:{blocksByName:{}}});const decision=autonomousProgressionDecision(b([{name:'crafting_table',count:1},{name:'gold_ingot',count:4}]),{dimension:'the_nether',health:20,food:20,nearbyEntities:[{type:'mob',name:'piglin'}],nearbyBlocks:[]},[]);assert.equal(decision.action,'craft');assert.equal(decision.args.name,'golden_boots')})

@@ -499,9 +499,11 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const iron=inventoryTotal(bot,x=>x.name==='iron_ingot')
   const sticks=inventoryTotal(bot,x=>x.name==='stick'),stringCount=inventoryTotal(bot,x=>x.name==='string'),featherCount=inventoryTotal(bot,x=>x.name==='feather'),flintCount=inventoryTotal(bot,x=>x.name==='flint'),arrowCount=inventoryTotal(bot,x=>x.name==='arrow')
   const hostile=nearbyEntities.find(x=>x?.type==='mob'&&hostileNames.test(String(x.name||'')))
+  const nether=String(observation.dimension||bot.game?.dimension||'').toLowerCase().includes('nether'),piglin=nearbyEntities.some(x=>x?.type==='mob'&&/piglin|zombified_piglin/.test(String(x.name||''))),goldIngots=inventoryTotal(bot,x=>x.name==='gold_ingot'),goldBoots=items.some(x=>x.name==='golden_boots')
   const visibleTargets=Array.isArray(observation.visibleTargets)?observation.visibleTargets:[]
   const mode=String(observation.gameMode||bot.game?.gameMode||'survival').toLowerCase()
   if(mode==='spectator')return{thought:'Modalità spettatore: osservazione senza azioni fisiche.',goal:'osservare e riferire la zona',action:'wait',args:{ms:3000},expected:'nessuna azione fisica'}
+  if(nether&&piglin&&!goldBoots&&table&&goldIngots>=4)return{thought:'Nether: piglin vicino e nessuna armatura d’oro, preparare stivali per evitare aggressioni.',goal:'craftare stivali dorati prima di attraversare il Nether',action:'craft',args:{name:'golden_boots',count:1},expected:'stivali dorati nell’inventario'}
   if(mode==='creative'){
     if(nearbyBlocks.some(x=>/^(lava|water)$/.test(typeof x==='string'?x:x?.name||'')))return{thought:'Creative: pericolo rilevato, cercare una posizione sicura senza raccolta survival.',goal:'allontanarsi dal pericolo',action:'escape_hazard',args:{},expected:'posizione sicura'}
     if(!sheltered)return{thought:'Creative: costruire direttamente un riparo.',goal:'costruire un riparo sicuro',action:'build_shelter',args:{},expected:'riparo costruito'}
