@@ -24,7 +24,7 @@ test('planner builds a Nether portal when obsidian and flint steel are ready',()
 test('build_portal places a verified frame and shares its checkpoint',async()=>{
   const placed=new Set(),items=[{name:'obsidian',count:10},{name:'flint_and_steel',count:1}],checkpoints=[]
   const key=p=>`${p.x},${p.y},${p.z}`
-  let activated='';const bot={entity:{position:{floored:()=>({x:0,y:64,z:0})}},inventory:{items:()=>items},blockAt:p=>placed.has(key(p))?{name:'obsidian',boundingBox:'block',position:p}:((p.y===63||p.x<0||p.x>2)?{name:'stone',boundingBox:'block',position:p}:{name:'air',boundingBox:'empty',position:p}),equip:async()=>{},placeBlock:async(base,face)=>{placed.add(`${base.position.x+face.x},${base.position.y+face.y},${base.position.z+face.z}`)},activateBlock:async block=>{activated=block.name}}
+  let activated='',portal=false;const bot={entity:{position:{floored:()=>({x:0,y:64,z:0})}},inventory:{items:()=>items},blockAt:p=>placed.has(key(p))?{name:'obsidian',boundingBox:'block',position:p}:((p.y===63||p.x<0||p.x>2)?{name:'stone',boundingBox:'block',position:p}:{name:'air',boundingBox:'empty',position:p}),findBlock:()=>portal?{name:'nether_portal'}:null,equip:async()=>{},placeBlock:async(base,face)=>{placed.add(`${base.position.x+face.x},${base.position.y+face.y},${base.position.z+face.z}`)},activateBlock:async block=>{activated=block.name;portal=true}}
   await execute(bot,{action:'build_portal',args:{}},{onShareCheckpoint:async cp=>checkpoints.push(cp)})
   assert.equal(placed.size,10);assert.equal(activated,'obsidian');assert.equal(checkpoints[0].type,'portal')
 })
