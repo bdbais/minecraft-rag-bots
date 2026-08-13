@@ -176,6 +176,8 @@ export class BotManager extends EventEmitter {
       if (!text || text.startsWith('!status')) return
       const positive=/\b(grazie|bravo|aiuto|salva|ottimo|amico|bene)\b/i.test(text), negative=/\b(stupido|idiota|vattene|odio|no)\b/i.test(text)
       entry.social?.remember(username,{memory:text,trust:positive?0.03:negative?-0.03:0.01,karma:positive?0.08:negative?-0.1:0})
+      const goalMatch=text.match(/\b(?:aiutami a|possiamo|dobbiamo|andiamo a|prova a|costruisci|trova|raccogli|porta|difendi|esplora)\s+(.{3,100})/i)
+      if(goalMatch){const goal=entry.social?.proposeGoal(goalMatch[1].replace(/[.!?]+$/,''),username);entry.dialogue?.observe({incoming:text,reply:'obiettivo registrato',goal:true,karma:positive?1:negative?-1:0});entry.social?.save().catch(()=>{});if(goal)this.log(id,'info',`Obiettivo sociale registrato: ${goal.title} · proposto da ${username}`)}
       entry.social?.save().catch(()=>{})
       const teammate = [...this.entries.values()].some(e => e !== entry && (e.bot?.username || e.config.username) === username)
       const addressed = text.toLowerCase().startsWith(`@${bot.username.toLowerCase()}`) || text.toLowerCase().startsWith(`@${config.name.toLowerCase()}`)
