@@ -276,7 +276,11 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'breed_animals': {
       const food=bot.inventory.items().find(i=>/wheat|carrot|potato|beetroot|seeds|melon_seeds|pumpkin_seeds/.test(i.name));if(!food)throw new Error('nessun alimento per allevamento nell’inventario')
       const species=String(a.species||'');const animals=Object.values(bot.entities).filter(e=>e.type==='mob'&&e.position?.distanceTo(bot.entity.position)<16&&(!species||String(e.name||'').includes(species))).slice(0,2);if(animals.length<2)throw new Error('servono due animali della stessa specie vicini')
-      await bot.equip(food,'hand');let fed=0;for(const animal of animals){try{await bot.pathfinder.goto(new goals.GoalNear(animal.position.x,animal.position.y,animal.position.z,2));await bot.activateEntity(animal);fed++}catch{}}if(fed<2)throw new Error('impossibile nutrire entrambi gli animali');return `allevamento avviato per ${fed} animali`
+      const beforeFood=bot.inventory.items().filter(i=>i.name===food.name).reduce((sum,i)=>sum+(Number(i.count)||0),0),beforeMobs=Object.keys(bot.entities).length
+      await bot.equip(food,'hand');let fed=0;for(const animal of animals){try{await bot.pathfinder.goto(new goals.GoalNear(animal.position.x,animal.position.y,animal.position.z,2));await bot.activateEntity(animal);fed++}catch{}}if(fed<2)throw new Error('impossibile nutrire entrambi gli animali')
+      await sleep(700);const afterFood=bot.inventory.items().filter(i=>i.name===food.name).reduce((sum,i)=>sum+(Number(i.count)||0),0),afterMobs=Object.keys(bot.entities).length
+      if(afterFood>=beforeFood&&afterMobs<=beforeMobs)throw new Error('nutrizione non verificata: il cibo non è diminuito e non è comparso un cucciolo')
+      return `allevamento avviato per ${fed} animali${afterMobs>beforeMobs?' con nuova nascita':''}`
     }
     case 'build_memorial': {
       const material=bot.inventory.items().find(i=>/stone|cobblestone|deepslate|planks/.test(i.name)&&i.count>=4);if(!material)throw new Error('servono 4 blocchi per un memoriale')
