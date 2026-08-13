@@ -107,6 +107,7 @@ export function basicProgressionDecision(bot,instruction=''){const text=String(i
 
 export async function execute(bot, decision, { allowPvp = false, onStorageSeen, onAttackTarget, onShareCheckpoint, onSocial, config } = {}) {
   decision=normalizeDecision(bot,decision);const a = decision.args || {}
+  if(['collect_block','collect_fluid','cool_lava','harvest_crops','plant_crops','inspect_storage','store_items','craft','smelt','fish','hunt_nearest'].includes(decision.action))await compactInventory(bot)
   switch (decision.action) {
     case 'wait': await sleep(Math.min(Number(a.ms) || 1000, 10000)); return 'waited'
     case 'chat': {
