@@ -15,3 +15,8 @@ test('planner prefers water when both fluids are visible',()=>{
   assert.equal(decision.action,'collect_fluid')
   assert.equal(decision.args.fluid,'water')
 })
+
+test('planner builds a Nether portal when obsidian and flint steel are ready',()=>{
+  const decision=autonomousProgressionDecision(bot([{name:'crafting_table',count:1},{name:'stone_pickaxe',count:1},{name:'stone_axe',count:1},{name:'chest',count:1},{name:'furnace',count:1},{name:'oak_log',count:2},{name:'cobblestone',count:8},{name:'obsidian',count:10},{name:'flint_and_steel',count:1}]),{health:20,food:20,nearbyEntities:[],nearbyBlocks:[]},[])
+  assert.equal(decision.action,'build_portal')
+})

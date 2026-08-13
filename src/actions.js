@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'cool_lava', 'harvest_crops', 'plant_crops', 'prepare_farm', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_portal', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -451,6 +451,18 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await sleep(250);const lower=bot.blockAt(bottom),upper=bot.blockAt(new Vec3(bottom.x,bottom.y+1,bottom.z));if(!/_door$/.test(lower?.name||'')&&!/_door$/.test(upper?.name||''))throw new Error('porta non verificata dopo il posizionamento')
       return `porta costruita a ${bottom.x},${bottom.y},${bottom.z}`
     }
+    case 'build_portal': {
+      const obsidian=bot.inventory?.items?.().find(i=>i.name==='obsidian'&&i.count>=10),flint=bot.inventory?.items?.().find(i=>i.name==='flint_and_steel'&&i.count>0)
+      if(!obsidian)throw new Error('servono almeno 10 blocchi di ossidiana per il portale')
+      if(!flint)throw new Error('serve un acciarino per accendere il portale')
+      const p=bot.entity.position.floored(),frame=[[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[2,2],[0,3],[1,3],[2,3]],placed=[]
+      await bot.equip(obsidian,'hand')
+      for(const [dx,dy] of frame){const target=bot.blockAt(new Vec3(p.x+dx,p.y+dy,p.z)),base=bot.blockAt(new Vec3(p.x+dx,p.y+dy-1,p.z));if(!target||!base||target.boundingBox==='block')continue;try{await bot.placeBlock(base,new Vec3(0,1,0));placed.push([dx,dy])}catch{}}
+      if(placed.length<10)throw new Error(`frame portale incompleto: ${placed.length}/10 blocchi`)
+      await bot.equip(flint,'hand');const inside=bot.blockAt(new Vec3(p.x+1,p.y+1,p.z));if(typeof bot.activateBlock==='function'&&inside)try{await bot.activateBlock(inside)}catch{}
+      await onShareCheckpoint?.({type:'portal',label:'Portale Nether',x:p.x+1,y:p.y+1,z:p.z,dimension:bot.game?.dimension,note:'frame costruito e acciarino usato',source:'nether'})
+      return 'portale Nether costruito e acceso'
+    }
     case 'attack_nearest': {
       const hostile = /zombie|skeleton|creeper|spider|enderman|witch|blaze|ghast|drowned|husk|stray|phantom|pillager|vindicator|ravager|slime|magma_cube|silverfish|endermite|warden|hoglin|piglin_brute|zoglin|wither|guardian|shulker/i
       const requested = String(a.target || a.name || '').toLowerCase()
@@ -561,6 +573,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   if(table&&hasPickaxe&&hasIronPickaxe&&rareName&&(/diamond/.test(rareName)?!hasDiamond:!hasGold))return{thought:`Scoperta rara: ${rareName} visibile e piccone adeguato disponibile.`,goal:`raccogliere ${rareName} per sbloccare nuove tecnologie`,action:'collect_block',args:{name:rareName,count:1,maxDistance:32},expected:`${rareName} raccolto nell’inventario`}
   const blazePowder=inventoryTotal(bot,x=>x.name==='blaze_powder'), pearls=inventoryTotal(bot,x=>x.name==='ender_pearl'), eyes=inventoryTotal(bot,x=>x.name==='ender_eye')
   if(table&&blazePowder>0&&pearls>0&&eyes<12)return{thought:'Campagna End: preparare una scorta affidabile di Eyes of Ender.',goal:'craftare Eyes of Ender per cercare la stronghold',action:'craft',args:{name:'ender_eye',count:Math.min(4,blazePowder,pearls,12-eyes)},expected:'Eyes of Ender nell’inventario'}
+  const obsidian=inventoryTotal(bot,x=>x.name==='obsidian'),portalKnown=checkpoints.some(x=>x.type==='portal'||/portal nether/i.test(x.label||''))
+  if(!portalKnown&&obsidian>=10&&has('flint_and_steel'))return{thought:'Preparazione Nether: ossidiana e acciarino pronti per un portale.',goal:'costruire e accendere il portale del Nether',action:'build_portal',args:{},expected:'portale Nether costruito e checkpoint condiviso'}
   const furnaceNear=nearbyBlocks.some(x=>/^(furnace|blast_furnace|smoker)$/.test(typeof x==='string'?x:x?.name||''))||!!bot.findBlock?.({matching:b=>/^(furnace|blast_furnace|smoker)$/.test(b?.name||''),maxDistance:32})
   const smeltable=items.find(x=>/raw_(iron|gold|copper)|(_ore)$|beef|porkchop|chicken|mutton|cod|salmon|sand|cobblestone/.test(x.name)&&x.count>0),fuel=items.some(x=>/coal|charcoal|log|wood|planks|stick|lava_bucket/.test(x.name)&&x.count>0)
   if((furnaceNear||has('furnace')||has('smoker'))&&smeltable&&fuel)return{thought:'Produzione: materiale grezzo e combustibile disponibili.',goal:`fondere ${smeltable.name} per ottenere risorse utili`,action:'smelt',args:{name:smeltable.name,count:Math.min(smeltable.count,8)},expected:'materiale cotto o raffinato nell’output del forno'}
