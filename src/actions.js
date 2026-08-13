@@ -365,7 +365,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if (!blocks.length) throw new Error('nessun blocco adatto per costruire un riparo')
       const material = blocks.sort((a, b) => b.count - a.count)[0]; await bot.equip(material, 'hand')
       const p = bot.entity.position.floored ? bot.entity.position.floored() : bot.entity.position; let placed = 0; const positions=[]
-      for (const [dx, dy, dz] of [[-1,0,-1],[0,0,-1],[1,0,-1],[-1,0,0],[1,0,0],[-1,0,1],[0,0,1],[1,0,1],[-1,1,-1],[1,1,-1],[-1,1,1],[1,1,1],[0,2,0]]) {
+      const layout=[[-1,0,-1],[0,0,-1],[1,0,-1],[-1,0,0],[1,0,0],[-1,0,1],[0,0,1],[1,0,1],[-1,1,-1],[0,1,-1],[1,1,-1],[-1,1,0],[1,1,0],[-1,1,1],[0,1,1],[1,1,1],[-1,2,-1],[0,2,-1],[1,2,-1],[-1,2,0],[0,2,0],[1,2,0],[-1,2,1],[0,2,1],[1,2,1]]
+      for (const [dx, dy, dz] of layout) {
         if (material.count <= 0) break
         const target = bot.blockAt(new Vec3(p.x + dx, p.y + dy, p.z + dz)), below = bot.blockAt(new Vec3(p.x + dx, p.y + dy - 1, p.z + dz))
         if (!target || !below || below.boundingBox !== 'block' || !/^(air|cave_air|void_air)$/.test(target.name)) continue
