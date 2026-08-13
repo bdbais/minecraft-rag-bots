@@ -499,6 +499,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const nearbyPlayer=nearbyEntities.find(x=>x?.type==='player'&&x.username&&x.username!==bot.username)
   const surplusFood=items.find(x=>/bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon|cod|salmon/.test(x.name)&&Number(x.count)>8)
   if(nearbyPlayer&&surplusFood)return{thought:'Cooperazione: un giocatore è vicino e ho una scorta alimentare sufficiente.',goal:`condividere cibo con ${nearbyPlayer.username}`,action:'give_item',args:{username:nearbyPlayer.username,name:surplusFood.name,count:1},expected:'cibo consegnato e memoria sociale aggiornata'}
+  const surplusMaterial=items.find(x=>(x.name==='torch'&&x.count>16)||(x.name==='iron_ingot'&&x.count>8)||(x.name==='cobblestone'&&x.count>32))
+  if(nearbyPlayer&&surplusMaterial)return{thought:'Cooperazione: condividere una risorsa eccedente con il compagno vicino.',goal:`condividere ${surplusMaterial.name} con ${nearbyPlayer.username}`,action:'give_item',args:{username:nearbyPlayer.username,name:surplusMaterial.name,count:Math.min(4,surplusMaterial.count-1)},expected:'materiale consegnato senza esaurire la riserva'}
   const armed=items.some(x=>/_sword$|_axe$|bow|crossbow/.test(x.name)&&Number(x.count)>0)
   const dangerousTarget=visibleTargets.find(x=>x&&/spawner|end_gateway|portal/.test(String(x.name||'')))
   if(nearbyPlayer&&dangerousTarget&&!armed)return{thought:'Pericolo condiviso: ho trovato un punto ostile ma non sono armato.',goal:`chiedere a ${nearbyPlayer.username} aiuto per ${dangerousTarget.name}`,action:'chat',args:{message:`@${nearbyPlayer.username} ho trovato ${dangerousTarget.name}, mi serve un’arma o il tuo aiuto prima di avvicinarmi.`},expected:'compagno informato e assistenza richiesta'}
