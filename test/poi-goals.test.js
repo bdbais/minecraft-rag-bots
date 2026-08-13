@@ -2,11 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { autonomousProgressionDecision } from '../src/actions.js'
 
-test('planner travels to a visible high-value point of interest',()=>{
-  const bot={inventory:{items:()=>[{name:'crafting_table',count:1},{name:'oak_log',count:4},{name:'stone_pickaxe',count:1},{name:'stone_axe',count:1},{name:'chest',count:1}]},findBlock:()=>null,registry:{blocksByName:{}}}
+test('planner completes basic survival before chasing a visible POI',()=>{
+  const bot={inventory:{items:()=>[{name:'crafting_table',count:1},{name:'oak_log',count:1},{name:'stone_pickaxe',count:1},{name:'stone_axe',count:1},{name:'chest',count:1}]},findBlock:()=>null,registry:{blocksByName:{}}}
   const decision=autonomousProgressionDecision(bot,{health:20,food:20,nearbyEntities:[],nearbyBlocks:[],visibleTargets:[{name:'diamond_ore',x:12,y:20,z:-4,distance:13}]},[{type:'base',label:'Riparo'}])
-  assert.equal(decision.action,'move_to')
-  assert.deepEqual(decision.args,{x:12,y:20,z:-4,range:2,poi:'diamond_ore'})
+  assert.equal(decision.action,'collect_wood')
 })
 
 test('planner never navigates directly into visible fluids',()=>{
