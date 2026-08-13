@@ -228,7 +228,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     }
     case 'cool_lava': {
       if(typeof bot.activateBlock!=='function')throw new Error('il client non supporta l’interazione con i fluidi')
-      const lava=bot.findBlock({matching:b=>b?.name==='lava',maxDistance:Math.min(Number(a.maxDistance)||12,24)})
+      const lava=bot.findBlock({matching:b=>b?.name==='lava'&&(!Number.isFinite(Number(b.metadata))||Number(b.metadata)===0)&&(!b.getProperties||Number(b.getProperties()?.level||0)===0),maxDistance:Math.min(Number(a.maxDistance)||12,24)})
       if(!lava)throw new Error('nessuna sorgente di lava raggiungibile per creare ossidiana')
       const water=bot.inventory.items().find(i=>i.name==='water_bucket'&&i.count>0)
       if(!water)throw new Error('serve un secchio d’acqua per raffreddare la lava')
