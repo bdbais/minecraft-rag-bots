@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { autonomousProgressionDecision } from '../src/actions.js'
 
 function bot(items) {
-  return { inventory: { items: () => items }, registry: { blocksByName: {} }, game: { dimension: 'overworld' } }
+  return { inventory: { items: () => items }, registry: { blocksByName: {} }, game: { dimension: 'overworld' }, fish: async () => {} }
 }
 
 test('scientist profession starts a reproducible redstone experiment', () => {
@@ -41,4 +41,9 @@ test('farmer profession harvests a mature field proactively', () => {
 test('builder profession establishes a shelter before exploration', () => {
   const decision = autonomousProgressionDecision(bot([{ name: 'oak_planks', count: 16 }]), { profession: 'builder', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] }, [])
   assert.equal(decision.action, 'build_shelter')
+})
+
+test('fisher profession fishes near water when a rod is available', () => {
+  const decision = autonomousProgressionDecision(bot([{ name: 'fishing_rod', count: 1 }, { name: 'oak_log', count: 8 }, { name: 'crafting_table', count: 1 }, { name: 'wooden_pickaxe', count: 1 }, { name: 'wooden_axe', count: 1 }, { name: 'wooden_shovel', count: 1 }, { name: 'chest', count: 1 }, { name: 'torch', count: 16 }, { name: 'cobblestone', count: 16 }]), { profession: 'fisher', health: 20, food: 20, nearbyEntities: [], nearbyBlocks: ['water'] }, [])
+  assert.equal(decision.action, 'fish')
 })
