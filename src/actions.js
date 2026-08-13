@@ -4,7 +4,7 @@ import { Vec3 } from 'vec3'
 const { goals, Movements } = pathfinderPackage
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'harvest_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
+const names = ['wait', 'chat', 'unstuck', 'escape_hazard', 'dig_escape', 'vertical_escape', 'move_to', 'explore', 'navigate_boat', 'follow_player', 'give_item', 'share_checkpoint', 'collect_wood', 'collect_block', 'collect_drops', 'collect_fluid', 'harvest_crops', 'plant_crops', 'inspect_storage', 'store_items', 'read_sign', 'write_sign', 'craft', 'smelt', 'sleep', 'equip', 'eat', 'fish', 'build_shelter', 'build_door', 'build_pen', 'build_redstone_defense', 'breed_animals', 'build_memorial', 'hunt_nearest', 'attack_nearest', 'stop']
 const isWood = block => /(_log|_wood|_stem|_hyphae)$/.test(block?.name || '')
 
 const itemCount = (bot, id, metadata = null) => bot.inventory.count(id, metadata)
@@ -237,6 +237,19 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await sleep(450);const after=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);if(!harvested||after<=before)throw new Error('raccolta colture non verificata nell’inventario')
       return `raccolte ${harvested} colture mature`
     }
+    case 'plant_crops': {
+      const seeds=(bot.inventory?.items?.()||[]).find(i=>/^(wheat_seeds|beetroot_seeds|carrot|potato|melon_seeds|pumpkin_seeds)$/.test(i.name)&&i.count>0)
+      if(!seeds)throw new Error('nessun seme disponibile per avviare la coltura')
+      const crop=seeds.name==='wheat_seeds'?'wheat':seeds.name==='beetroot_seeds'?'beetroots':seeds.name==='carrot'?'carrots':seeds.name==='potato'?'potatoes':seeds.name==='melon_seeds'?'melon_stem':'pumpkin_stem'
+      const soils=typeof bot.findBlocks==='function'?bot.findBlocks({matching:b=>b?.name==='farmland',maxDistance:Math.min(Number(a.maxDistance)||24,40),count:Math.min(Number(a.count)||4,8)}):[]
+      if(!soils.length)throw new Error('nessun terreno arato raggiungibile per piantare')
+      const before=seeds.count;let planted=0
+      await bot.equip(seeds,'hand')
+      for(const pos of soils){const target=bot.blockAt(new Vec3(pos.x,pos.y+1,pos.z));if(!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(bot.blockAt(pos),new Vec3(0,1,0));const placed=bot.blockAt(new Vec3(pos.x,pos.y+1,pos.z));if(placed&&placed.name===crop)planted++}catch{}}
+      const after=(bot.inventory?.items?.()||[]).filter(i=>i.name===seeds.name).reduce((n,i)=>n+(Number(i.count)||0),0)
+      if(!planted||after>=before)throw new Error('semina non verificata nel mondo o nell’inventario')
+      return `piantate ${planted} colture di ${crop}`
+    }
     case 'inspect_storage': {
       const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:48})
       if(!block)throw new Error('nessuna chest o barrel visibile')
@@ -465,6 +478,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
   const edible=farmAnimals.filter(x=>/^(cow|pig|chicken|sheep|rabbit)$/.test(String(x?.name||'')))
   const matureCrop=nearbyBlocks.some(x=>/^(wheat|carrots|potatoes|beetroots|nether_wart|sweet_berry_bush)$/.test(typeof x==='string'?x:x?.name||''))
   if(matureCrop&&foodCount<12)return{thought:'Agricoltura: una coltura matura può aumentare la riserva senza cacciare.',goal:'raccogliere colture mature per la scorta',action:'harvest_crops',args:{count:4},expected:'raccolto verificato nell inventario'}
+  const seed=items.find(x=>/^(wheat_seeds|beetroot_seeds|carrot|potato|melon_seeds|pumpkin_seeds)$/.test(x.name)&&x.count>0)
+  if(seed&&nearbyBlocks.some(x=>String(typeof x==='string'?x:x?.name||'')==='farmland'))return{thought:'Agricoltura: semi e terreno arato disponibili, avviare una coltura rinnovabile.',goal:'piantare semi per creare una riserva alimentare',action:'plant_crops',args:{count:Math.min(4,seed.count)},expected:'colture piantate e semi consumati'}
   if(foodCount<4&&(foodCount===0||Number(observation.food)>=8)&&edible.length&&farmAnimals.length<2)return{thought:'Scorta preventiva: poche provviste e animale commestibile vicino.',goal:`cacciare ${edible[0].name} per creare una riserva di cibo`,action:'hunt_nearest',args:{target:edible[0].name},expected:'carne raccolta e scorta aumentata'}
   if(hostile&&!items.some(x=>/_sword$|_axe$/.test(x.name))&&table)return{thought:'Difesa: un mob ostile è vicino e manca un’arma.',goal:'creare un’arma per difendersi',action:'craft',args:{name:'sword',count:1},expected:'arma nell inventario'}
   if(table&&!has('shield')&&iron>=1&&planks>=1)return{thought:'Difesa preventiva: creare uno scudo prima di rischiare esplorazioni.',goal:'creare uno scudo per ridurre i danni',action:'craft',args:{name:'shield',count:1},expected:'scudo nell inventario'}
