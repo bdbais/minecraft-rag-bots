@@ -545,6 +545,8 @@ export function autonomousProgressionDecision(bot, observation = {}, checkpoints
     if(!visibleStone)return{thought:'Progressione mineraria: il piccone è pronto ma la pietra non è ancora caricata nella zona visibile.',goal:'esplorare una zona sicura per trovare pietra prima di minare',action:'explore',args:{radius:24},expected:'nuova area caricata con pietra raggiungibile'}
     return{thought:'Progressione mineraria: il piccone è pronto ma mancano pietra e cobblestone per forno e strumenti.',goal:'minare pietra con il piccone per sbloccare la tecnologia di base',action:'collect_block',args:{name:'stone',count:Math.min(8-cobble,8),maxDistance:32},expected:'almeno otto blocchi di cobblestone nell’inventario'}
   }
+  const teamTarget=checkpoints.filter(x=>x&&Number.isFinite(Number(x.x))&&Number.isFinite(Number(x.y))&&Number.isFinite(Number(x.z))&&!/danger|lava|water/i.test(`${x.type||''} ${x.label||''}`)).sort((a,b)=>Number(a.distance||999)-Number(b.distance||999))[0]
+  if(teamTarget)return{thought:`Coordinamento: raggiungere il checkpoint condiviso ${teamTarget.label||teamTarget.type}.`,goal:`raggiungere il checkpoint di squadra ${teamTarget.label||teamTarget.type}`,action:'move_to',args:{x:teamTarget.x,y:teamTarget.y,z:teamTarget.z,range:3,poi:teamTarget.label||teamTarget.type},expected:'checkpoint di squadra raggiunto'}
   // Once immediate survival needs are satisfied, keep the world-learning
   // loop alive even when the language model returns no plan. Exploration is
   // bounded and becomes a reusable episode through the normal learner.
