@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { autonomousProgressionDecision } from '../src/actions.js'
+import { autonomousProgressionDecision, execute } from '../src/actions.js'
 
 test('hunts an edible animal only when hungry and no breeding pair is present', () => {
   const bot = { inventory: { items: () => [] }, game: { gameMode: 'survival' } }
@@ -23,3 +23,5 @@ test('hunt action collects nearby drops after the attack', async () => {
   await execute(bot, { action: 'hunt_nearest', args: {} })
   assert.deepEqual(calls, ['attack'])
 })
+
+test('hunt equips an available weapon before attacking', async()=>{const equipped=[];const target={type:'mob',name:'cow',position:{distanceTo:()=>2}};const bot={entity:{position:{distanceTo:()=>2}},inventory:{items:()=>[{name:'stone_sword',count:1}]},nearestEntity:()=>target,equip:async(i,s)=>equipped.push([i.name,s]),pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{},entities:{}};await execute(bot,{action:'hunt_nearest',args:{}});assert.deepEqual(equipped,[['stone_sword','hand']])})

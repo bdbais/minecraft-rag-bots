@@ -357,6 +357,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       const edible = /cow|pig|chicken|sheep|rabbit|cod|salmon/i
       const target = bot.nearestEntity(e => e.type === 'mob' && edible.test(e.name || '') && e.position.distanceTo(bot.entity.position) < 16)
       if (!target) throw new Error('nessun animale commestibile vicino')
+      const weapon=(bot.inventory?.items?.()||[]).filter(i=>/(_sword|_axe)$/.test(i.name)&&i.count>0).sort((a,b)=>/sword/.test(b.name)-/sword/.test(a.name)||/diamond/.test(b.name)-/diamond/.test(a.name)||/iron/.test(b.name)-/iron/.test(a.name))[0]
+      if(weapon&&typeof bot.equip==='function')await bot.equip(weapon,'hand')
       if(bot.registry?.blocksByName){const movement = new Movements(bot); movement.canDig = false; bot.pathfinder.setMovements(movement)}
       await bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)); onAttackTarget?.(target); bot.attack(target); await sleep(700); await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
