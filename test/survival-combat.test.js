@@ -28,6 +28,13 @@ test('planner prioritizes an Ender Dragon in the End when armed',()=>{
   assert.equal(decision.args.target,'ender_dragon')
 })
 
+test('attack_nearest can acquire a distant Ender Dragon without ignoring normal mob limits',async()=>{
+  const target={type:'mob',name:'ender_dragon',position:{distanceTo:()=>40},isValid:false}
+  const bot={entity:{position:{distanceTo:()=>0}},inventory:{items:()=>[{name:'diamond_sword',count:1}]},nearestEntity:predicate=>predicate(target)?target:null,equip:async()=>{},pathfinder:{setMovements:()=>{},goto:async()=>{}},attack:()=>{}}
+  const result=await execute(bot,{action:'attack_nearest',args:{target:'ender_dragon'}})
+  assert.match(result,/attacked ender_dragon/)
+})
+
 test('attack_nearest does not select passive animals by default', async () => {
   const bot = {
     entity: { position: { distanceTo: () => 2 } }, entities: {},
