@@ -334,7 +334,10 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
     case 'eat': {
       const food = bot.inventory.items().find(i => i.name === a.name) || bot.inventory.items().find(i => /bread|apple|beef|porkchop|chicken|mutton|carrot|potato|melon/.test(i.name))
       if (!food) throw new Error('no recognized food')
-      await bot.equip(food, 'hand'); await bot.consume(); return `ate ${food.name}`
+      const beforeFood=typeof bot.food==='number'?bot.food:null
+      await bot.equip(food, 'hand'); await bot.consume(); await sleep(250)
+      if(beforeFood!==null&&typeof bot.food==='number'&&bot.food<=beforeFood)throw new Error('cibo consumato ma livello fame non aumentato')
+      return `ate ${food.name}`
     }
     case 'fish': {
       if (typeof bot.fish !== 'function') throw new Error('pesca non disponibile nel client Minecraft')
