@@ -13,4 +13,5 @@ export class SocialMemory {
   penalize(name,amount=0.1,memory){return this.remember(name,{karma:-Math.abs(Number(amount)||0.1),bad:true,memory})}
   proposeGoal(title,proposer){if(!title)return null;const existing=this.goals.find(g=>g.title===title&&g.status==='open');if(existing){existing.supporters=[...new Set([...existing.supporters,proposer].filter(Boolean))];return existing}const goal={id:`goal-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,title:String(title),proposer:proposer||'unknown',supporters:proposer?[proposer]:[],status:'open',createdAt:new Date().toISOString()};this.goals.push(goal);this.goals=this.goals.slice(-50);return goal}
   openGoals(){return this.goals.filter(g=>g.status==='open')}
+  completeGoal(title,actor){if(!title)return null;const wanted=String(title).toLowerCase();const goal=this.goals.find(g=>g.status==='open'&&(wanted.includes(String(g.title).toLowerCase())||String(g.title).toLowerCase().includes(wanted)));if(!goal)return null;goal.status='completed';goal.completedBy=actor||'unknown';goal.completedAt=new Date().toISOString();return goal}
 }

@@ -12,3 +12,4 @@ test('social memory persists karma and shared goals', async()=>{
 })
 
 test('shared social goals merge supporters instead of duplicating goals',()=>{const s=new SocialMemory('unused');const a=s.proposeGoal('trovare il dungeon','Alex'),b=s.proposeGoal('trovare il dungeon','Grifa');assert.equal(a.id,b.id);assert.deepEqual(b.supporters.sort(),['Alex','Grifa'])})
+test('completed social goals leave the active queue',()=>{const s=new SocialMemory('unused');s.proposeGoal('costruire una base','Alex');const done=s.completeGoal('costruire una base','Grifa');assert.equal(done.completedBy,'Grifa');assert.equal(s.openGoals().length,0)})
