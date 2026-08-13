@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { autonomousProgressionDecision } from '../src/actions.js'
+import { autonomousProgressionDecision, execute } from '../src/actions.js'
 
 test('autonomous planner replaces a nearly broken tool before exploration', () => {
   const bot = {
@@ -12,4 +12,11 @@ test('autonomous planner replaces a nearly broken tool before exploration', () =
   const decision = autonomousProgressionDecision(bot, { health: 20, food: 20, nearbyEntities: [], nearbyBlocks: [] })
   assert.equal(decision.action, 'craft')
   assert.equal(decision.args.name, 'iron_pickaxe')
+  assert.equal(decision.args.replaceWorn, true)
+})
+
+test('craft replacement equips the fresh tool', async()=>{
+  const equipped=[];let count=0;const bot={registry:{itemsByName:{iron_pickaxe:{id:1}},items:{1:{name:'iron_pickaxe'}},blocksByName:{crafting_table:{id:2}}},inventory:{items:()=>[{name:'iron_pickaxe',type:1,count:1}],count:()=>count},findBlock:()=>({name:'crafting_table'}),recipesFor:()=>[{result:{count:1},delta:[]}],craft:async()=>{count=1},equip:async(item,slot)=>equipped.push([item.name,slot])}
+  await execute(bot,{action:'craft',args:{name:'iron_pickaxe',replaceWorn:true}})
+  assert.deepEqual(equipped,[['iron_pickaxe','hand']])
 })
