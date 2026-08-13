@@ -511,7 +511,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         bot.attack(target);await sleep(350)
         if(target.isValid===false||Number(target.health)<=0)break
       }
-      if(Number.isFinite(Number(target.health))&&Number(target.health)>0&&target.isValid!==false)throw new Error(`bersaglio ${target.name||target.username} ancora vivo dopo l'attacco`)
+      const stillTracked=Object.values(bot.entities||{}).includes(target)
+      if((Number.isFinite(Number(target.health))&&Number(target.health)>0)||(target.isValid===true&&stillTracked))throw new Error(`bersaglio ${target.name||target.username} ancora vivo dopo l'attacco`)
       await collectNearbyDrops(bot,16); return `attacked ${target.name || target.username}`
     }
     case 'hunt_nearest': {
@@ -528,7 +529,8 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
         bot.attack(target);await sleep(350)
         if(target.isValid===false||Number(target.health)<=0)break
       }
-      if(Number.isFinite(Number(target.health))&&Number(target.health)>0&&target.isValid!==false)throw new Error(`animale ${target.name||'bersaglio'} ancora vivo dopo la caccia`)
+      const stillTracked=Object.values(bot.entities||{}).includes(target)
+      if((Number.isFinite(Number(target.health))&&Number(target.health)>0)||(target.isValid===true&&stillTracked))throw new Error(`animale ${target.name||'bersaglio'} ancora vivo dopo la caccia`)
       await collectNearbyDrops(bot,16); return `cacciato ${target.name || 'animale'} e raccolti i drop`
     }
     default: throw new Error(`unsupported action ${decision.action}`)
