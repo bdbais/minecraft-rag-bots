@@ -257,6 +257,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.pathfinder.goto(new goals.GoalNear(lava.position.x,lava.position.y,lava.position.z,2));await bot.equip(water,'hand');await bot.activateBlock(lava);await sleep(450)
       const cooled=bot.blockAt(lava.position)
       if(!cooled||!/^(obsidian|cobblestone|stone)$/.test(cooled.name))throw new Error(`raffreddamento non verificato: la lava è ancora ${cooled?.name||'sconosciuta'}`)
+      await onShareCheckpoint?.({type:'resource',label:`Sorgente lava raffreddata (${cooled.name})`,x:lava.position.x,y:lava.position.y,z:lava.position.z,dimension:bot.game?.dimension,note:'fluido controllato e trasformato senza esposizione diretta',source:'fluid-control'})
       return `lava raffreddata: ottenuto ${cooled.name==='obsidian'?'ossidiana':cooled.name}`
     }
     case 'harvest_crops': {

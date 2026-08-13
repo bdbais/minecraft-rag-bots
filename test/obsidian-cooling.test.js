@@ -21,3 +21,11 @@ test('cool_lava verifies that the source became a solid block',async()=>{
   const result=await execute(bot,{action:'cool_lava',args:{}})
   assert.match(result,/ossidiana/i)
 })
+
+test('cool_lava shares the transformed resource location',async()=>{
+  let cooled=false;const shared=[]
+  const lava={name:'lava',position:{x:1,y:64,z:1}}
+  const bot={entity:{position:{distanceTo:()=>1}},inventory:{items:()=>[{name:'water_bucket',count:1}]},findBlock:()=>lava,blockAt:()=>({name:cooled?'obsidian':'lava'}),pathfinder:{goto:async()=>{}},equip:async()=>{},activateBlock:async()=>{cooled=true}}
+  await execute(bot,{action:'cool_lava',args:{}},{onShareCheckpoint:x=>shared.push(x)})
+  assert.equal(shared[0].type,'resource')
+})
