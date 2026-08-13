@@ -20,3 +20,11 @@ test('smelt opens a nearby furnace and loads input and fuel', async () => {
   const result=await execute(bot,{action:'smelt',args:{name:'raw_iron',count:1,waitMs:1}})
   assert.match(result,/fusione/);assert.deepEqual(calls,[['fuel',2,1],['input',1,1]])
 })
+
+test('smelt with lava requires the empty bucket to return',async()=>{
+  let returned=false
+  const items=()=>[{name:'raw_iron',type:1,count:1},{name:'lava_bucket',type:3,count:1},...(returned?[{name:'bucket',type:4,count:1}]:[])]
+  const bot={entity:{position:{distanceTo:()=>1}},inventory:{items},findBlock:()=>({name:'furnace',position:{x:0,y:64,z:0}}),pathfinder:{goto:async()=>{}},openFurnace:async()=>({putFuel:async()=>{returned=true},putInput:async()=>{},outputItem:()=>({name:'iron',count:1}),close:()=>{}})}
+  const result=await execute(bot,{action:'smelt',args:{name:'raw_iron',count:1,waitMs:1}})
+  assert.match(result,/fusione/)
+})
