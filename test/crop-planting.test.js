@@ -19,7 +19,9 @@ test('plant_crops equips seeds and verifies planted blocks',async()=>{
     equip:async()=>{},
     placeBlock:async()=>{planted++;seeds--}
   }
-  const result=await execute(bot,{action:'plant_crops',args:{count:1}})
+  let shared=null
+  const result=await execute(bot,{action:'plant_crops',args:{count:1}},{onShareCheckpoint:x=>{shared=x}})
   assert.match(result,/piantate 1/i)
   assert.equal(seeds,1)
+  assert.equal(shared.type,'resource')
 })

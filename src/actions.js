@@ -268,7 +268,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if(!crops.length)throw new Error('nessuna coltura matura raggiungibile')
       const before=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);let harvested=0
       for(const crop of crops){try{await bot.pathfinder.goto(new goals.GoalNear(crop.position.x,crop.position.y,crop.position.z,2));await bot.dig(crop);harvested++;const seedName=crop.name==='wheat'?'wheat_seeds':crop.name==='beetroots'?'beetroot_seeds':crop.name==='carrots'?'carrot':crop.name==='potatoes'?'potato':null;const seed=seedName&&bot.inventory.items().find(i=>i.name===seedName&&i.count>0);const soil=seed&&bot.blockAt(new Vec3(crop.position.x,crop.position.y-1,crop.position.z));if(seed&&soil?.name==='farmland'&&typeof bot.equip==='function'&&typeof bot.placeBlock==='function'){try{await bot.equip(seed,'hand');await bot.placeBlock(soil,new Vec3(0,1,0))}catch{}}}catch{}}
-      await sleep(450);const after=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);if(!harvested||after<=before)throw new Error('raccolta colture non verificata nell’inventario')
+      await sleep(450);const after=bot.inventory.items().reduce((sum,i)=>sum+(Number(i.count)||0),0);if(!harvested||after<=before)throw new Error('raccolta colture non verificata nell’inventario');const center=crops[0]?.position;if(center)await onShareCheckpoint?.({type:'resource',label:'Campo agricolo produttivo',x:center.x,y:center.y,z:center.z,dimension:bot.game?.dimension,note:`${harvested} colture raccolte e ripiantate quando possibile`,source:'farming'})
       return `raccolte ${harvested} colture mature`
     }
     case 'plant_crops': {
@@ -281,7 +281,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       await bot.equip(seeds,'hand')
       for(const pos of soils){const target=bot.blockAt(new Vec3(pos.x,pos.y+1,pos.z));if(!target||!/^(air|cave_air|void_air)$/.test(target.name))continue;try{await bot.placeBlock(bot.blockAt(pos),new Vec3(0,1,0));const placed=bot.blockAt(new Vec3(pos.x,pos.y+1,pos.z));if(placed&&placed.name===crop)planted++}catch{}}
       const after=(bot.inventory?.items?.()||[]).filter(i=>i.name===seeds.name).reduce((n,i)=>n+(Number(i.count)||0),0)
-      if(!planted||after>=before)throw new Error('semina non verificata nel mondo o nell’inventario')
+      if(!planted||after>=before)throw new Error('semina non verificata nel mondo o nell’inventario');const center=soils[0];await onShareCheckpoint?.({type:'resource',label:'Campo agricolo seminato',x:center.x,y:center.y,z:center.z,dimension:bot.game?.dimension,note:`${planted} colture seminate`,source:'farming'})
       return `piantate ${planted} colture di ${crop}`
     }
     case 'prepare_farm': {
@@ -295,7 +295,7 @@ export async function execute(bot, decision, { allowPvp = false, onStorageSeen, 
       if(!hoe)throw new Error('nessuna zappa disponibile per arare')
       await bot.pathfinder.goto(new goals.GoalNear(soil.position.x,soil.position.y,soil.position.z,2));await bot.equip(hoe,'hand');await bot.activateBlock(soil);await sleep(400)
       const farmland=bot.blockAt(soil.position);if(!farmland||farmland.name!=='farmland')throw new Error('aratura non verificata: il blocco non è diventato farmland')
-      return `campo preparato vicino all’acqua a ${soil.position.x},${soil.position.y},${soil.position.z}`
+      await onShareCheckpoint?.({type:'resource',label:'Campo agricolo irrigato',x:soil.position.x,y:soil.position.y,z:soil.position.z,dimension:bot.game?.dimension,note:'terreno arato vicino all’acqua',source:'farming'});return `campo preparato vicino all’acqua a ${soil.position.x},${soil.position.y},${soil.position.z}`
     }
     case 'inspect_storage': {
       const block=bot.findBlock({matching:b=>/^(chest|trapped_chest|barrel)$/.test(b?.name||''),maxDistance:48})
