@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('botsApi', {
   disconnect: id => ipcRenderer.invoke('bot:disconnect', id), prompt: (id, text) => ipcRenderer.invoke('bot:prompt', { id, text }),
   promptAll: text => ipcRenderer.invoke('bot:prompt-all', text),
   createChild: (parentAId, parentBId, options) => ipcRenderer.invoke('bot:create-child', { parentAId, parentBId, options }),
-  stopAll: () => ipcRenderer.invoke('bot:stop-all'),
+  stopAll: () => ipcRenderer.invoke('bot:stop-all'), startAll: () => ipcRenderer.invoke('bot:start-all'),
   getMap: id => ipcRenderer.invoke('map:get', id),
   ollamaStatus: () => ipcRenderer.invoke('ollama:status'), ollamaStart: () => ipcRenderer.invoke('ollama:start'), ollamaInstall: () => ipcRenderer.invoke('ollama:install'), ollamaSetupModels: () => ipcRenderer.invoke('ollama:setup-models'),
   exportBiography: id => ipcRenderer.invoke('biography:export', id),

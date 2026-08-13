@@ -123,10 +123,12 @@ function render() {
 }
 
 function openEditor(cfg = null) {
+  if(!document.forms.bot?.elements.startAtAppRestart){const anchor=document.forms.bot?.elements.autoStart?.closest('label');if(anchor){const label=document.createElement('label');label.className='check';label.innerHTML='<input name="startAtAppRestart" type="checkbox"> Riavvia l’AI all’avvio dell’app';anchor.after(label)}}
   const form = $('#botForm'); form.reset(); form.elements.id.value = cfg?.id || ''
   $('#editorTitle').textContent = cfg ? 'Modifica bot' : 'Nuovo bot'; $('#deleteBot').classList.toggle('hidden', !cfg)
   if (cfg) for (const [key, value] of Object.entries(cfg)) { if (form.elements[key] && key !== 'autoStart') form.elements[key].value = value ?? '' }
   form.autoStart.checked = cfg ? cfg.autoStart !== false : true
+  if(form.startAtAppRestart) form.startAtAppRestart.checked = !!cfg?.startAtAppRestart
   form.listenChat.checked = cfg ? cfg.listenChat !== false : true
   form.gender.value = cfg?.gender || 'neutral'
   form.aiProvider.value = cfg?.aiProvider || 'local'
@@ -150,7 +152,7 @@ $('#newBot').onclick = () => openEditor(); $('#editBot').onclick = () => openEdi
 if(!$('#cloneBot')){const button=document.createElement('button');button.id='cloneBot';button.textContent='Clona bot';button.title='Crea un nuovo bot copiando la configurazione senza memoria privata o credenziali';$('#editBot')?.after(button)}
 $('#cloneBot').onclick=()=>cloneBot(selected)
 async function saveBotForm(form) {
-  const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, listenChat: form.listenChat.checked, allowPvp: false }
+  const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, startAtAppRestart: !!form.startAtAppRestart?.checked, listenChat: form.listenChat.checked, allowPvp: false }
   for(const name of ['strength','dexterity','intelligence','vitality','willpower','perception']) cfg[name]=Number(raw[name])||10
   delete cfg.actionTimeoutSeconds; delete cfg.planTimeoutSeconds
   const previous = configs.find(x => x.id === id)
@@ -175,6 +177,7 @@ if(!$('#createChildBot')){const b=document.createElement('button');b.id='createC
 $('#createChildBot').onclick = () => safe(async()=>{if(!selected)throw new Error('Seleziona un bot genitore');const parent=configs.find(x=>x.id===selected),other=configs.find(x=>x.id!==selected);if(!other)throw new Error('Servono almeno due bot configurati');const child=await api.createChild(parent.id,other.id,{name:`Figlio di ${parent.name} e ${other.name}`});configs=await api.saveConfigs([...configs,child]);selected=child.id;render();toast(`Discendente creato da ${parent.name} e ${other.name}`)})
 $('#generateBook').onclick = () => safe(async () => { const button = $('#generateBook'); button.disabled = true; $('#bookProgress').classList.remove('hidden'); try { const saved = await api.generateEpicBook(selected); if (saved) toast('Libro epico completato') } finally { button.disabled = false; setTimeout(() => $('#bookProgress').classList.add('hidden'), 2500) } })
 $('#emergencyStop').onclick = () => safe(async () => { const count = await api.stopAll(); toast(`${count} bot arrestati e coda AI annullata`) })
+$('#startAllAI').onclick = () => safe(async () => { const count = await api.startAll(); toast(`${count} bot inseriti nella coda di avvio seriale`) })
 $('#worldMap').onclick=()=>safe(openWorldMap);$('#closeWorldMap').onclick=()=>$('#worldMapDialog').close();$('#mapZoomIn').onclick=()=>{mapZoom=Math.min(24,mapZoom*1.35);drawWorldMap()};$('#mapZoomOut').onclick=()=>{mapZoom=Math.max(1.5,mapZoom/1.35);drawWorldMap()};$('#mapCenter').onclick=()=>{mapFollow=true;$('#mapFollow').textContent='GPS ON';$('#mapFollow').classList.add('active');centerMap()};$('#mapFollow').onclick=()=>{mapFollow=!mapFollow;$('#mapFollow').textContent=mapFollow?'GPS ON':'GPS OFF';$('#mapFollow').classList.toggle('active',mapFollow);if(mapFollow)centerMap()};document.querySelectorAll('[data-poi]').forEach(b=>b.onclick=()=>{const key=b.dataset.poi;if(mapPoiFilters.has(key))mapPoiFilters.delete(key);else mapPoiFilters.add(key);b.classList.toggle('active',mapPoiFilters.has(key));drawWorldMap()})
 $('#mapCanvas').onmousemove=e=>{if(!mapData)return;const canvas=$('#mapCanvas'),rect=canvas.getBoundingClientRect(),px=(e.clientX-rect.left)*canvas.width/rect.width,py=(e.clientY-rect.top)*canvas.height/rect.height,x=mapCenter.x+(px-canvas.width/2)/mapZoom,z=mapCenter.z+(py-canvas.height/2)/mapZoom,cx=Math.floor(x/mapData.cellSize),cz=Math.floor(z/mapData.cellSize),cell=(mapData.cells||[]).find(c=>c.x===cx&&c.z===cz),hover=$('#mapHover');if(!cell){hover.classList.add('hidden');return}hover.textContent=`X ${Math.floor(x)} · Z ${Math.floor(z)} · ${prettyName(cell.block)} · Y ${cell.y}`;hover.style.left=`${e.clientX-rect.left}px`;hover.style.top=`${e.clientY-rect.top}px`;hover.classList.remove('hidden')};$('#mapCanvas').onmouseleave=()=>$('#mapHover').classList.add('hidden')
 $('#closeOllamaSetup').onclick = $('#useCloudOnly').onclick = () => { localStorage.setItem('ollamaSetupDismissed','1'); $('#ollamaSetup').close() }
@@ -206,5 +209,5 @@ function initDashboardPanels(){
 }
 api.onUpdateBanner?.(info=>{const banner=document.createElement('button');banner.className='updateBanner';banner.textContent=`Aggiornamento installato · v${info.version} · leggi il changelog`;banner.title='Apri il changelog della versione installata';banner.onclick=()=>{banner.remove();api.showChangelog()};document.body.prepend(banner);setTimeout(()=>banner.remove(),15000)})
 initDashboardPanels()
-;(async () => { configs = await api.listConfigs(); (await api.listBots()).forEach(s => snapshots.set(s.id,s)); selected = configs[0]?.id || null; render(); if(!localStorage.getItem('ollamaSetupDismissed')){const status=await api.ollamaStatus();if(!status.ready)await refreshOllamaSetup(true)} })()
+;(async () => { configs = await api.listConfigs(); (await api.listBots()).forEach(s => snapshots.set(s.id,s)); selected = configs[0]?.id || null; render(); for(const cfg of configs.filter(x=>x.startAtAppRestart)){try{await api.connect(cfg);toast(`Avvio automatico accodato: ${cfg.name}`)}catch(e){toast(`${cfg.name}: ${e.message}`)}} if(!localStorage.getItem('ollamaSetupDismissed')){const status=await api.ollamaStatus();if(!status.ready)await refreshOllamaSetup(true)} })()
 setTimeout(()=>$('#mapCanvas')?.addEventListener('wheel',e=>{e.preventDefault();mapZoom=Math.max(1.5,Math.min(24,mapZoom*(e.deltaY<0?1.2:1/1.2)));drawWorldMap()},{passive:false}),0)
