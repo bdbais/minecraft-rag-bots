@@ -75,7 +75,7 @@ async function renderInventory(game, version, botId) {
   const itemHtml=(item,extra='')=>{if(!item)return`<div class="item-slot empty-slot ${extra}"></div>`;const icon=preferredItemIcon(item.name,version)||proceduralItemIcon(item.name),tip=`${prettyName(item.name)}\nID: ${item.name}\nQuantità: ${item.count}${Number.isInteger(item.slot)?`\nSlot rapido: ${item.slot+1}`:''}`;return`<div class="item-slot ${extra}" data-tip="${esc(tip)}">${icon?`<img src="${icon}" alt="${esc(item.name)}">`:`<span class="item-fallback">${esc(item.name.slice(0,2).toUpperCase())}</span>`}<b>${item.count}</b></div>`}
   $('#hotbar').innerHTML=hotbar.map((item,index)=>itemHtml(item,index===game.selectedHotbarSlot?'selected-slot':'')).join('')
   $('#heldItem').innerHTML=held?`<div class="held-card">${itemHtml(held,'held-slot')}<div><b>${esc(prettyName(held.name))}</b><small>In mano · slot ${(held.slot??game.selectedHotbarSlot??0)+1} · quantità ${held.count}</small></div></div>`:'<span class="chip">mano vuota</span>'
-  let eq=$('#equipment');if(!eq){const section=document.createElement('div');section.className='uiSection';section.innerHTML='<div class="sectionHead"><h4>Equipaggiamento</h4></div>';eq=document.createElement('div');eq.id='equipment';eq.className='equipment-grid';section.append(eq);$('#heldItem')?.closest('.uiSection')?.after(section)}
+  let eq=$('#equipment');if(!eq){const section=document.createElement('div');section.className='uiSection';section.innerHTML='<div class="sectionHead"><h4>Equipaggiamento</h4><button class="sectionToggle" type="button" title="Mostra o nascondi equipaggiamento">−</button></div>';eq=document.createElement('div');eq.id='equipment';eq.className='equipment-grid';section.append(eq);$('#heldItem')?.closest('.uiSection')?.after(section);const button=section.querySelector('.sectionToggle'),key='dashboard-section-Equipaggiamento';if(localStorage.getItem(key)==='collapsed'){section.classList.add('collapsed');button.textContent='+'}button.onclick=()=>{section.classList.toggle('collapsed');button.textContent=section.classList.contains('collapsed')?'+':'−';localStorage.setItem(key,section.classList.contains('collapsed')?'collapsed':'open')}}
   const eqSlots=['Testa','Corpo','Gambe','Piedi','Mano principale','Mano secondaria'];eq.innerHTML=eqSlots.map((label,i)=>`<div><small>${label}</small>${itemHtml(equipment[i]?{name:equipment[i],count:1} : null,'equipment-slot')}</div>`).join('')
   const slots = Object.entries(inv).map(([name, count]) => {
     const icon = preferredItemIcon(name,version)||proceduralItemIcon(name); const tip = `${prettyName(name)}\nID: ${name}\nQuantità: ${count}`
@@ -212,8 +212,8 @@ $('#toggleServerState')?.addEventListener('click',()=>{const panel=$('#serverSta
 // Pannelli personalizzabili: ogni sezione può essere richiusa e i pannelli principali
 // possono essere riordinati trascinandoli. L'ordine resta locale alla dashboard.
 function initDashboardPanels(){
-  document.querySelectorAll('.sectionToggle').forEach(button=>button.addEventListener('click',()=>{
-    const section=button.closest('.uiSection'); section.classList.toggle('collapsed'); button.textContent=section.classList.contains('collapsed')?'+':'−'
+  document.querySelectorAll('.sectionToggle').forEach((button,index)=>{const section=button.closest('.uiSection'),key=`dashboard-section-${section?.querySelector('h4')?.textContent?.trim()||index}`;if(localStorage.getItem(key)==='collapsed'){section.classList.add('collapsed');button.textContent='+'}button.addEventListener('click',()=>{
+    section.classList.toggle('collapsed'); button.textContent=section.classList.contains('collapsed')?'+':'−';localStorage.setItem(key,section.classList.contains('collapsed')?'collapsed':'open')
   }))
   const grid=document.querySelector('.grid'); if(!grid)return
   const saved=JSON.parse(localStorage.getItem('dashboard-panel-order')||'[]'), panels=[...grid.querySelectorAll(':scope > .panel')]
