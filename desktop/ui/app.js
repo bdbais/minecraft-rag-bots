@@ -66,7 +66,7 @@ function drawWorldMap(){if(!mapData)return;const canvas=$('#mapCanvas'),ctx=canv
 async function openWorldMap(){mapData=await api.getMap(selected);mapZoom=6;mapFollow=true;$('#mapFollow').textContent='GPS ON';$('#mapFollow').classList.add('active');$('#mapTitle').textContent=`Mappa di ${configs.find(x=>x.id===selected)?.name||'bot'}`;$('#worldMapDialog').showModal();centerMap()}
 const _openWorldMap=openWorldMap; openWorldMap=async()=>{await _openWorldMap();renderMapPoiList()}
 async function renderInventory(game, version, botId) {
-  const inv=game?.inventory||{},hotbar=Array.isArray(game?.hotbar)?game.hotbar:Array(9).fill(null),held=game?.heldItem||null,names=[...new Set([...Object.keys(inv),...hotbar.filter(Boolean).map(x=>x.name),...(held?[held.name]:[])])],missing = names.filter(name => !iconCache.has(`${version}:${name}`))
+  const inv=game?.inventory||{},hotbar=Array.isArray(game?.hotbar)?game.hotbar:Array(9).fill(null),held=game?.heldItem||null,equipment=Array.isArray(game?.equipment)?game.equipment:[],names=[...new Set([...Object.keys(inv),...hotbar.filter(Boolean).map(x=>x.name),...(held?[held.name]:[]),...equipment])],missing = names.filter(name => !iconCache.has(`${version}:${name}`))
   if (missing.length) {
     const icons = await api.itemIcons(missing, version)
     for (const name of missing) iconCache.set(`${version}:${name}`, icons[name] || '')
@@ -75,6 +75,8 @@ async function renderInventory(game, version, botId) {
   const itemHtml=(item,extra='')=>{if(!item)return`<div class="item-slot empty-slot ${extra}"></div>`;const icon=preferredItemIcon(item.name,version)||proceduralItemIcon(item.name),tip=`${prettyName(item.name)}\nID: ${item.name}\nQuantità: ${item.count}${Number.isInteger(item.slot)?`\nSlot rapido: ${item.slot+1}`:''}`;return`<div class="item-slot ${extra}" data-tip="${esc(tip)}">${icon?`<img src="${icon}" alt="${esc(item.name)}">`:`<span class="item-fallback">${esc(item.name.slice(0,2).toUpperCase())}</span>`}<b>${item.count}</b></div>`}
   $('#hotbar').innerHTML=hotbar.map((item,index)=>itemHtml(item,index===game.selectedHotbarSlot?'selected-slot':'')).join('')
   $('#heldItem').innerHTML=held?`<div class="held-card">${itemHtml(held,'held-slot')}<div><b>${esc(prettyName(held.name))}</b><small>In mano · slot ${(held.slot??game.selectedHotbarSlot??0)+1} · quantità ${held.count}</small></div></div>`:'<span class="chip">mano vuota</span>'
+  let eq=$('#equipment');if(!eq){eq=document.createElement('div');eq.id='equipment';eq.className='equipment-grid';$('#heldItem')?.closest('.panel')?.querySelector('#heldItem')?.parentElement?.after(eq)}
+  const eqSlots=['Testa','Corpo','Gambe','Piedi','Mano principale','Mano secondaria'];eq.innerHTML=eqSlots.map((label,i)=>`<div><small>${label}</small>${itemHtml(equipment[i]?{name:equipment[i],count:1} : null,'equipment-slot')}</div>`).join('')
   const slots = Object.entries(inv).map(([name, count]) => {
     const icon = preferredItemIcon(name,version)||proceduralItemIcon(name); const tip = `${prettyName(name)}\nID: ${name}\nQuantità: ${count}`
     return `<div class="item-slot" data-tip="${esc(tip)}">${icon ? `<img src="${icon}" alt="${esc(name)}">` : `<span class="item-fallback">${esc(name.slice(0,2).toUpperCase())}</span>`}<b>${count}</b></div>`
