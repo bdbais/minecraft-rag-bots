@@ -214,7 +214,7 @@ $('#toggleServerState')?.addEventListener('click',()=>{const panel=$('#serverSta
 function initDashboardPanels(){
   document.querySelectorAll('.sectionToggle').forEach((button,index)=>{const section=button.closest('.uiSection'),key=`dashboard-section-${section?.querySelector('h4')?.textContent?.trim()||index}`;if(localStorage.getItem(key)==='collapsed'){section.classList.add('collapsed');button.textContent='+'}button.addEventListener('click',()=>{
     section.classList.toggle('collapsed'); button.textContent=section.classList.contains('collapsed')?'+':'−';localStorage.setItem(key,section.classList.contains('collapsed')?'collapsed':'open')
-  }))
+  })
   const grid=document.querySelector('.grid'); if(!grid)return
   const saved=JSON.parse(localStorage.getItem('dashboard-panel-order')||'[]'), panels=[...grid.querySelectorAll(':scope > .panel')]
   panels.forEach((panel,index)=>{panel.dataset.panelId=panel.dataset.panelId||panel.querySelector('h3')?.textContent?.trim()||`panel-${index}`})
