@@ -135,12 +135,14 @@ function openLessons(snapshot){
 
 function openEditor(cfg = null) {
   if(!document.forms.bot?.elements.profession){const anchor=document.forms.bot?.elements.personality?.closest('label');if(anchor){const label=document.createElement('label');label.innerHTML='<span>Professione</span><select name="profession" title="Professione persistente del bot"><option value="wanderer">Vagabondo</option><option value="farmer">Contadino</option><option value="breeder">Allevatore</option><option value="warrior">Guerriero</option><option value="hunter">Cacciatore</option><option value="fisher">Pescatore</option><option value="builder">Costruttore</option><option value="explorer">Esploratore</option><option value="scientist">Scienziato</option><option value="priest">Sacerdote</option><option value="nun">Suora</option><option value="trader">Mercante</option></select></label>';anchor.after(label)}}
-  if(!document.forms.bot?.elements.startAtAppRestart){const anchor=document.forms.bot?.elements.autoStart?.closest('label');if(anchor){const label=document.createElement('label');label.className='check';label.innerHTML='<input name="startAtAppRestart" type="checkbox"> Riavvia l’AI all’avvio dell’app';anchor.after(label)}}
+  if(!document.forms.bot?.elements.startAtAppRestart){const anchor=document.forms.bot?.elements.autoStart?.closest('label');if(anchor){const label=document.createElement('label');label.className='check';label.title='Avvia automaticamente questo bot quando l’applicazione viene aperta.';label.innerHTML='<input name="startAtAppRestart" type="checkbox"> Avvia AI all’avvio dell’app';anchor.after(label);const service=document.createElement('label');service.className='check';service.title='Mantiene il bot in modalità servizio e tenta la riconnessione dopo una disconnessione.';service.innerHTML='<input name="serviceMode" type="checkbox"> Modalità servizio (riavvio automatico)';label.after(service);const update=document.createElement('label');update.className='check';update.title='Controlla gli aggiornamenti senza interrompere il servizio.';update.innerHTML='<input name="serviceAutoUpdate" type="checkbox"> Aggiornamento silenzioso';service.after(update)}}
   const form = $('#botForm'); form.reset(); form.elements.id.value = cfg?.id || ''
   $('#editorTitle').textContent = cfg ? 'Modifica bot' : 'Nuovo bot'; $('#deleteBot').classList.toggle('hidden', !cfg)
   if (cfg) for (const [key, value] of Object.entries(cfg)) { if (form.elements[key] && key !== 'autoStart') form.elements[key].value = value ?? '' }
   form.autoStart.checked = cfg ? cfg.autoStart !== false : true
   if(form.startAtAppRestart) form.startAtAppRestart.checked = !!cfg?.startAtAppRestart
+  if(form.serviceMode) form.serviceMode.checked = !!cfg?.serviceMode
+  if(form.serviceAutoUpdate) form.serviceAutoUpdate.checked = !!cfg?.serviceAutoUpdate
   form.listenChat.checked = cfg ? cfg.listenChat !== false : true
   form.gender.value = cfg?.gender || 'neutral'
   if(form.profession) form.profession.value = cfg?.profession || 'wanderer'
@@ -165,7 +167,7 @@ $('#newBot').onclick = () => openEditor(); $('#editBot').onclick = () => openEdi
 if(!$('#cloneBot')){const button=document.createElement('button');button.id='cloneBot';button.textContent='Clona bot';button.title='Crea un nuovo bot copiando la configurazione senza memoria privata o credenziali';$('#editBot')?.after(button)}
 $('#cloneBot').onclick=()=>cloneBot(selected)
 async function saveBotForm(form) {
-  const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, startAtAppRestart: !!form.startAtAppRestart?.checked, listenChat: form.listenChat.checked, allowPvp: false }
+  const raw = Object.fromEntries(new FormData(form)); const id = raw.id || crypto.randomUUID(); const cfg = { ...raw, id, port: Number(raw.port), visionRadius:Number(raw.visionRadius)||48, intervalMs: Number(raw.intervalMs), actionTimeoutMs: Number(raw.actionTimeoutSeconds) * 1000, planTimeoutMs: Number(raw.planTimeoutSeconds) * 1000, autoStart: form.autoStart.checked, startAtAppRestart: !!form.startAtAppRestart?.checked, serviceMode: !!form.serviceMode?.checked, serviceAutoUpdate: !!form.serviceAutoUpdate?.checked, listenChat: form.listenChat.checked, allowPvp: false }
   for(const name of ['strength','dexterity','intelligence','vitality','willpower','perception']) cfg[name]=Number(raw[name])||10
   delete cfg.actionTimeoutSeconds; delete cfg.planTimeoutSeconds
   const previous = configs.find(x => x.id === id)
