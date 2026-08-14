@@ -41,7 +41,7 @@ function applyHelpTips(root = document) {
     if (!tip && el.type === 'submit') tip = 'Salva le impostazioni e riconnette il bot con la nuova configurazione.'
     if (!tip) tip = el.closest('label')?.childNodes[0]?.textContent?.trim() || el.textContent.trim() || 'Controllo dell’interfaccia'
     el.title = tip; el.setAttribute('aria-label', el.getAttribute('aria-label') || tip)
-  })})
+  })
   root.querySelectorAll('.botItem').forEach(el => { el.title = 'Seleziona questo bot per vedere stato, inventario, memoria e comandi.' });root.querySelectorAll('.botDelete').forEach(el=>{el.title='Elimina questa configurazione dopo una richiesta di conferma.';el.setAttribute('aria-label','Elimina bot')})
   root.querySelectorAll('.stats article').forEach(el => { el.title = `Mostra ${el.querySelector('label')?.textContent.toLowerCase() || 'una statistica'} del bot selezionato.` })
 }
@@ -214,7 +214,7 @@ $('#toggleServerState')?.addEventListener('click',()=>{const panel=$('#serverSta
 function initDashboardPanels(){
   document.querySelectorAll('.sectionToggle').forEach((button,index)=>{const section=button.closest('.uiSection'),key=`dashboard-section-${section?.querySelector('h4')?.textContent?.trim()||index}`;if(localStorage.getItem(key)==='collapsed'){section.classList.add('collapsed');button.textContent='+'}button.addEventListener('click',()=>{
     section.classList.toggle('collapsed'); button.textContent=section.classList.contains('collapsed')?'+':'−';localStorage.setItem(key,section.classList.contains('collapsed')?'collapsed':'open')
-  })
+  })})
   const grid=document.querySelector('.grid'); if(!grid)return
   const saved=JSON.parse(localStorage.getItem('dashboard-panel-order')||'[]'), panels=[...grid.querySelectorAll(':scope > .panel')]
   panels.forEach((panel,index)=>{panel.dataset.panelId=panel.dataset.panelId||panel.querySelector('h3')?.textContent?.trim()||`panel-${index}`})
