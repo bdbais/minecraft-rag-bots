@@ -89,6 +89,7 @@ export class BotManager extends EventEmitter {
       : new OllamaClient(config.ollamaUrl, config.model, config.embedModel, this.scheduler,{fallbackModel:config.model==='minecraft-agent'?'minecraft-agent-lite':'',onUsage,onFallback:({previous,current})=>{entry.runtimeModel=current;this.log(id,'error',`Timeout AI ripetuti: passaggio automatico da ${previous} a ${current}`);this.publish(id)}})
     entry.ollama=aiClient;entry.runtimeModel=config.aiProvider==='cloud'?config.cloudModel:config.model
     entry.connection='preparing-ai';this.publish(id)
+    if (config.aiProvider !== 'cloud' && typeof aiClient.ensureRunning === 'function') { await aiClient.ensureRunning() }
     try { await aiClient.decide('Warm-up only. Return JSON.', 'Return the JSON object {"ready":true}.', {type:'object',properties:{ready:{type:'boolean'}},required:['ready'],additionalProperties:false});entry.aiReady=true } catch (error) { entry.connection='error';entry.bootstrapError=`AI non pronta: ${error.message}`;this.log(id,'error',entry.bootstrapError);this.publish(id);throw error }
     const bot = mineflayer.createBot({...minecraftConnectionOptions(config, this.dataDir, code => this.emit('microsoft-code', code)),viewDistance:'far'})
     entry.bot = bot; bot.loadPlugin(pathfinder); bot.loadPlugin(collectBlock.plugin)

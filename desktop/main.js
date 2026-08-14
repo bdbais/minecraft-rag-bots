@@ -47,6 +47,7 @@ async function findOllamaCli() {
 async function modelRecommendation(){let gpu={};try{gpu=await app.getGPUInfo('basic')}catch{}const hardware={ramBytes:os.totalmem(),cpuModel:os.cpus()[0]?.model||'',logicalCpuCount:os.cpus().length,gpus:gpu.gpuDevice||[]};return {...recommendLocalModel(hardware),hardwareDna:hardwareDna(hardware)}}
 async function ollamaStatus(){const status=await queryOllama();let installedDefinition='',selection=null;try{installedDefinition=(await fs.readFile(ollamaModelVersionFile(),'utf8')).trim()}catch{}try{selection=JSON.parse(await fs.readFile(ollamaSelectionFile(),'utf8'))}catch{}const baseModelCurrent=installedDefinition===app.getVersion(),recommendation=await modelRecommendation();return{...status,ready:status.ready&&baseModelCurrent,baseModelCurrent,recommendation,selection,installed:!!(await findOllamaCli()),platform:process.platform}}
 async function startOllama(){const cli=await findOllamaCli();if(!cli)throw new Error('Ollama non è installato');if(process.platform==='darwin'&&cli.includes('.app'))spawn('open',['-a','Ollama'],{detached:true,stdio:'ignore'}).unref();else spawn(cli,['serve'],{detached:true,stdio:'ignore',windowsHide:true}).unref();for(let i=0;i<15;i++){await new Promise(r=>setTimeout(r,1000));const status=await queryOllama();if(status.running)return status}throw new Error('Ollama è installato ma il servizio non risponde. Avvialo manualmente e riprova.')}
+async function ensureOllamaRunning(config){if(config?.aiProvider==='cloud')return;if(!(await queryOllama()).running){send('ollama:progress',{message:'Ollama spento: avvio automatico…',percent:5});await startOllama()}}
 async function installOllama(){if(process.platform!=='win32'){await shell.openExternal('https://ollama.com/download');return{external:true}}send('ollama:progress',{message:'Installazione di Ollama tramite Windows…',percent:5});try{await execFileAsync('winget.exe',['install','--id','Ollama.Ollama','--exact','--accept-package-agreements','--accept-source-agreements'],{windowsHide:true,timeout:15*60*1000,maxBuffer:10*1024*1024});return{installed:true}}catch(error){await shell.openExternal('https://ollama.com/download/windows');throw new Error(`Installazione automatica non completata. Ho aperto il download ufficiale. ${error.message}`)}}
 function runOllamaCommand(cli,args,message,percent){return new Promise((resolve,reject)=>{send('ollama:progress',{message,percent});const child=spawn(cli,args,{windowsHide:true});let tail='';child.stdout.on('data',x=>{tail=(tail+x).slice(-1000);send('ollama:progress',{message:`${message} ${String(x).trim().slice(-100)}`,percent})});child.stderr.on('data',x=>{tail=(tail+x).slice(-1000)});child.on('error',reject);child.on('close',code=>code===0?resolve():reject(new Error(`${message} non riuscita: ${tail.trim()||`codice ${code}`}`)))})}
 async function benchmarkOllamaModel(model){const started=Date.now(),response=await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model,stream:false,think:false,format:'json',options:{temperature:0,num_predict:24},messages:[{role:'user',content:'Reply only with JSON: {"ready":true}'}]}),signal:AbortSignal.timeout(45000)});if(!response.ok)throw new Error(await response.text());await response.json();return Date.now()-started}
@@ -150,7 +151,7 @@ ipcMain.handle('app:changelog', () => showChangelog())
 ipcMain.on('ui:selected-bot', (_, id) => { selectedBotId = typeof id === 'string' ? id : null })
 ipcMain.handle('config:save', (_, items) => saveConfigs(items))
 ipcMain.handle('bot:list', () => manager.snapshots())
-ipcMain.handle('bot:connect', async (_, cfg) => manager.connect({ ...cfg, cloudApiKey: cfg.aiProvider === 'cloud' ? await getApiKey(cfg.id) : '' }))
+ipcMain.handle('bot:connect', async (_, cfg) => { await ensureOllamaRunning(cfg); return manager.connect({ ...cfg, cloudApiKey: cfg.aiProvider === 'cloud' ? await getApiKey(cfg.id) : '' }) })
 ipcMain.handle('bot:start', (_, id) => manager.start(id))
 ipcMain.handle('bot:stop', (_, id) => manager.stop(id))
 ipcMain.handle('bot:disconnect', (_, id) => manager.disconnect(id))
@@ -160,6 +161,8 @@ ipcMain.handle('bot:create-child', (_, { parentAId, parentBId, options }) => man
 ipcMain.handle('bot:stop-all', () => manager.stopAll())
 ipcMain.handle('bot:start-all', async () => {
   const configs = await readConfigs()
+  const local = configs.find(cfg => cfg.aiProvider !== 'cloud')
+  if (local) await ensureOllamaRunning(local)
   let connected = 0
   for (const cfg of configs) {
     if (manager.entries.has(cfg.id)) continue
